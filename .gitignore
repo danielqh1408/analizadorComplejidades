@@ -103,7 +103,6 @@ reports/
 *.dot
 *.gv
 *.svg
-*.png
 *.jpg
 *.jpeg
 
