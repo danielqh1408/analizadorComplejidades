@@ -1,0 +1,163 @@
+# ==========================================
+# 🌐 ENTORNO PYTHON
+# ==========================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*$py.class
+
+# Entornos virtuales
+venv/
+.env/
+.venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Configuración del entorno y dependencias locales
+*.env
+*.venv
+Pipfile
+Pipfile.lock
+poetry.lock
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+
+# ==========================================
+# ⚙️ ARCHIVOS DE COMPILACIÓN Y CACHE
+# ==========================================
+build/
+dist/
+*.spec
+*.o
+*.so
+*.dll
+*.dylib
+*.out
+*.a
+*.lib
+*.obj
+*.pdb
+*.manifest
+
+# Caché de Numba, Cython y compiladores JIT
+__pycache__/
+*.nbc
+*.numba_cache
+*.nbi
+*.pkl
+.cache/
+*.c
+*.cpp
+*.html
+*.pyx.c
+*.pyx.cpp
+
+# Cachés de CuPy/CUDA
+cupy_cache/
+.cuda_cache/
+~/.cupy/
+~/.nv/
+~/.cache/
+
+# ==========================================
+# 🧮 ANÁLISIS Y LOGS
+# ==========================================
+logs/
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.DS_Store
+*.pid
+*.lock
+nohup.out
+
+# ==========================================
+# 🧪 TESTS Y REPORTES
+# ==========================================
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+test-results/
+tests/__pycache__/
+junit.xml
+
+# ==========================================
+# 📊 ARCHIVOS DE SALIDA / RESULTADOS
+# ==========================================
+output/
+results/
+reports/
+*.json
+*.csv
+*.xlsx
+*.pdf
+*.dot
+*.gv
+*.svg
+*.png
+*.jpg
+*.jpeg
+
+# ==========================================
+# 🧠 ARCHIVOS DEL PROYECTO Y API
+# ==========================================
+# Claves API, configuraciones locales, tokens
+*.key
+*.pem
+*.crt
+*.csr
+*.token
+*.secret
+secrets.json
+
+# Configuración de FastAPI / Uvicorn
+*.db
+*.sqlite3
+*.sqlite
+instance/
+__debugger__/
+
+# ==========================================
+# 🧰 EDITORES Y SISTEMAS
+# ==========================================
+# VSCode
+.vscode/
+.history/
+.code-workspace
+
+# JetBrains / PyCharm
+.idea/
+*.iml
+
+# Linux / macOS / Windows
+Thumbs.db
+.DS_Store
+.Trashes
+*.lnk
+*.tmp
+*.bak
+*.swp
+
+# ==========================================
+# 🚀 OTROS
+# ==========================================
+# Archivos temporales de desarrollo
+temp/
+tmp/
+sandbox/
+scratch/
+
+# Exportaciones del analizador
+/export/
+diagrams/
+cache_ast/
+session_data/
