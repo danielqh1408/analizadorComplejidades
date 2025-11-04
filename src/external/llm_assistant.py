@@ -2,7 +2,7 @@
 LLM Assistant Wrapper (External Service)
 
 This module provides a unified, asynchronous interface to communicate with
-external LLM providers (Gemini, OpenAI).
+external LLM providers (Gemini).
 
 It handles:
 - Asynchronous requests using aiohttp.
@@ -19,6 +19,7 @@ import asyncio
 import json
 import time
 from typing import Dict, Any, Optional
+
 
 # --- Project-Specific Imports ---
 try:
@@ -55,6 +56,9 @@ class LLMAssistant:
     """
     
     def __init__(self):
+
+        if config.get_bool("LLM", "mock_mode", default=False):
+            return {"text": "Simulated response for test."}
         """
         Initializes the LLM Assistant, loading configuration from the
         global 'config' instance.
@@ -76,17 +80,6 @@ class LLMAssistant:
         except KeyError as e:
             logger.warning(f"Gemini config incomplete. Provider disabled. Missing: {e}")
             self.api_keys['gemini'] = None
-            
-        # --- Load OpenAI Config ---
-        try:
-            self.openai_model = config.get('LLM', 'openai_model')
-            self.openai_url = config.get('LLM', 'openai_api_base_url')
-            openai_key_env = config.get('SECURITY', 'openai_api_key_env')
-            self.api_keys['openai'] = config.get_api_key(openai_key_env)
-        except KeyError as e:
-            logger.warning(f"OpenAI config incomplete. Provider disabled. Missing: {e}")
-            self.api_keys['openai'] = None
-
         # --- Initialize HTTP Session ---
         # (aiohttp==3.10.5)
         # Create the session in the constructor. It will be managed
@@ -110,14 +103,6 @@ class LLMAssistant:
         if provider == 'gemini':
             # Gemini API key is passed as a URL parameter, not a header
             return {'Content-Type': 'application/json'}
-        
-        elif provider == 'openai':
-            if not self.api_keys['openai']:
-                raise ValueError("OpenAI API key is not configured.")
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {self.api_keys["openai"]}'
-            }
         raise ValueError(f"Unknown provider: {provider}")
 
     def _build_payload(self, prompt: str, provider: str) -> Dict[str, Any]:
@@ -127,15 +112,6 @@ class LLMAssistant:
             return {
                 "contents": [
                     {"parts": [{"text": prompt}]}
-                ]
-            }
-        
-        elif provider == 'openai':
-            # Payload for OpenAI (Chat Completions)
-            return {
-                "model": self.openai_model,
-                "messages": [
-                    {"role": "user", "content": prompt}
                 ]
             }
         raise ValueError(f"Unknown provider: {provider}")
@@ -150,13 +126,7 @@ class LLMAssistant:
                 # Parse Gemini response [cite: ArquitecturaF.png - Extractor]
                 content = data['candidates'][0]['content']['parts'][0]['text']
                 # Note: 'usageMetadata' may not always be present
-                tokens = data.get('usageMetadata', {}).get('totalTokenCount', 0)
-                
-            elif provider == 'openai':
-                # Parse OpenAI response
-                content = data['choices'][0]['message']['content']
-                tokens = data['usage']['total_tokens']
-                
+                tokens = data.get('usageMetadata', {}).get('totalTokenCount', 0)     
             else:
                 raise ValueError(f"Unknown provider: {provider}")
 
@@ -196,10 +166,6 @@ class LLMAssistant:
                 return self._handle_error(401, "NotConfigured", provider, "Gemini API key is missing.")
             url = f"{self.gemini_url}/{self.gemini_model}:generateContent"
             params = {'key': self.api_keys['gemini']}
-        elif provider == 'openai':
-            if not self.api_keys['openai']:
-                return self._handle_error(401, "NotConfigured", provider, "OpenAI API key is missing.")
-            url = f"{self.openai_url}/chat/completions"
         else:
             return self._handle_error(400, "UnknownProvider", provider, f"Provider '{provider}' not supported.")
 

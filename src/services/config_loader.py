@@ -33,34 +33,35 @@ class ConfigLoader:
         Private constructor. Do not call directly.
         Use ConfigLoader.get_instance() instead.
         """
-        if ConfigLoader._instance:
+        if ConfigLoader._instance is not None:
             raise RuntimeError("ConfigLoader is a Singleton. Use get_instance().")
         
-        # 1. Determine Project Root
-        # This file is at: .../ANALIZADORCOMPLEJIDADES/src/services/config_loader.py
-        # We need to go up 3 levels to get to the root.
         self._project_root = Path(__file__).resolve().parent.parent.parent
-        
-        # 2. Load .env file (if python-dotenv is installed)
+
         if load_dotenv:
             env_path = self._project_root / '.env'
             if env_path.exists():
                 load_dotenv(dotenv_path=env_path)
-            
-        # 3. Load config.ini
-        self._config = configparser.ConfigParser()
+
+        self._config = configparser.ConfigParser(interpolation=None)
         config_file_path = self._project_root / 'config.ini'
-        
+
         if not config_file_path.exists():
             print(f"FATAL ERROR: config.ini not found at {config_file_path}")
             raise FileNotFoundError(f"config.ini not found at {config_file_path}")
-            
+        
         try:
             self._config.read(config_file_path)
             print(f"ConfigLoader: Successfully loaded '{config_file_path}'")
         except configparser.Error as e:
             print(f"FATAL ERROR: Failed to parse 'config.ini'. Error: {e}")
             raise
+
+        env_mode = os.environ.get("APP_ENV")
+        if env_mode:
+            if not self._config.has_section("ENVIRONMENT"):
+                self._config.add_section("ENVIRONMENT")
+            self._config.set("ENVIRONMENT", "mode", env_mode)
 
     @classmethod
     def get_instance(cls) -> 'ConfigLoader':
@@ -83,7 +84,7 @@ class ConfigLoader:
         """
         return self._project_root
 
-    def get(self, section: str, key: str) -> str:
+    def get(self, section, key, default=None):
         """
         Retrieves a configuration value as a string.
         
@@ -100,8 +101,12 @@ class ConfigLoader:
         try:
             return self._config.get(section, key)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
+            if default is not None:
+                print(f"WARNING: Missing key '{key}' in section '{section}', using default='{default}'")
+                return default
             print(f"ERROR: Config key not found: section='{section}', key='{key}'")
             raise KeyError(f"Config key not found: {e}") from e
+
 
     def get_int(self, section: str, key: str, default: Optional[int] = None) -> int:
         """

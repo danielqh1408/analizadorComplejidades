@@ -10,16 +10,29 @@ import pytest
 import asyncio
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock
+from src.services.config_loader import ConfigLoader, config as global_config
+from src.services.metrics import MetricsLogger
+
+@pytest.fixture
+def config_loader_instance():
+    """
+    Define la fixture 'config_loader_instance' que 
+    piden las pruebas de configuración.
+    """
+    # Crea y devuelve una instancia de tu cargador
+    return ConfigLoader.get_instance()
+
+@pytest.fixture(scope="session")
+def metrics_logger_instance():
+    """Provides the singleton instance of the MetricsLogger."""
+    # Asumo que también es un singleton
+    return MetricsLogger.get_instance()
 
 # --- Core Service Fixtures (Session-Scoped) ---
 
 @pytest.fixture(scope="session")
 def config():
-    """
-    Loads the global ConfigLoader instance once for the entire test session.
-    Relies on the config_loader module to handle the singleton pattern.
-    """
-    from src.services.config_loader import config as global_config
+
     # Ensure config is loaded in 'testing' mode (if config.ini exists)
     try:
         if global_config.get('ENVIRONMENT', 'mode') != 'testing':
@@ -56,8 +69,8 @@ def metrics(config):
 
 # --- Mocking Fixtures ---
 
-@pytest.fixture(scope="session", autouse=True)
-def llm_mock(monkeypatch):
+@pytest.fixture(scope="function", autouse=True)
+def llm_mock(monkeypatch, logger):
     """
     Session-scoped, auto-used fixture to mock the LLMAssistant.
     This replaces the real 'send_request' and 'close_session' methods
@@ -67,9 +80,9 @@ def llm_mock(monkeypatch):
     
     # Define the mock async function for send_request
     async def mock_send_request(self, prompt: str, task_type: str = "general"):
-        await asyncio.sleep(0.01) # Simulate network latency
-        
-        # Return a standardized mock response
+        """Simula una respuesta del LLM sin hacer llamadas reales."""
+        await asyncio.sleep(0.01)  # Simular latencia de red
+
         if "fail" in prompt:
             return {
                 "status": "error",
@@ -77,7 +90,7 @@ def llm_mock(monkeypatch):
                 "error": "MockedFailure",
                 "details": "Prompt contained 'fail'"
             }
-        
+
         return {
             "status": "ok",
             "provider": "mock_llm",
@@ -85,23 +98,23 @@ def llm_mock(monkeypatch):
             "tokens": 42
         }
 
-    # Define the mock async function for close_session
+
     async def mock_close_session(self):
-        # This is an async no-op
+        """Simula el cierre de sesión asincrónico."""
         pass
 
-    # Use monkeypatch to replace the methods on the class definition
+
+    # Aplica los mocks correctamente sobre la clase LLMAssistant real
     monkeypatch.setattr(
-        "src.external.llm_assistant.LLMAssJessica.send_request",
+        "src.external.llm_assistant.LLMAssistant.send_request",
         mock_send_request
     )
     monkeypatch.setattr(
         "src.external.llm_assistant.LLMAssistant.close_session",
         mock_close_session
     )
-    
-    logger.info("LLMAssistant has been mocked for the test session.")
 
+    logger.info("✅ LLMAssistant ha sido mockeado correctamente para la sesión de pruebas.")
 # --- API Test Client ---
 
 @pytest.fixture(scope="session")

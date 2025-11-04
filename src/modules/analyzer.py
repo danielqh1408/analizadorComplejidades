@@ -113,22 +113,35 @@ class Analyzer(ASTVisitor):
         (Ej. n**2 + n + 1 -> n**2)
         """
         try:
-            # leadterm() es la forma estándar
-            term = expr.leadterm(self.n)[0]
-            if term == 0:
-                return sympify(1) # O(1)
-            return term
+            # Simplificar primero
+            simplified = expr.simplify()
+
+            # Si la expresión no depende de 'n' (constante), su cota asintótica es O(1)
+            if not simplified.has(self.n) or simplified.is_constant():
+                return sympify(1)
+
+            # leadterm() es la forma estándar para expresiones con 'n'
+            dominant = sympy.O(simplified, (self.n, sympy.oo)).args[0]
+
+            # Si el término es solo un coeficiente, devolver 'n'
+            if dominant.is_Number:
+                 return self.n
+            
+            return dominant
+        
         except (TypeError, AttributeError, NotImplementedError):
             # Fallback para expresiones complejas (ej. log(n))
             simplified = expr.simplify()
-            if simplified.is_constant():
+            if not simplified.has(self.n) or simplified.is_constant():
                 return sympify(1)
-            return simplified
+            return simplified.as_expr().subs(self.i, self.n).subs(self.j, self.n).subs(self.k, self.n)
 
     def _resolve_expr(self, expr_node: Expression) -> sympy.Expr:
         """Convierte un nodo de expresión del AST a un símbolo de sympy."""
         if isinstance(expr_node, VarNode):
-            if expr_node.name == 'n':
+            current_param_names = [p.name for p in self.current_function.params]
+
+            if expr_node.name in current_param_names:
                 return self.n
             # Asumimos otras variables como constantes de tiempo 1
             return Symbol(expr_node.name, integer=True)
@@ -245,11 +258,11 @@ class Analyzer(ASTVisitor):
 
     def visit_VarNode(self, node: VarNode):
         """Costo de leer una variable (O(1))."""
-        return ComplexityResult(sympify(1), sympify(1))
+        return ComplexityResult(sympify(0), sympify(0))
         
     def visit_ConstNode(self, node: ConstNode):
         """Costo de un literal (O(1))."""
-        return ComplexityResult(sympify(1), sympify(1))
+        return ComplexityResult(sympify(0), sympify(0))
         
     def visit_BinOpNode(self, node: BinOpNode):
         """Costo de una operación binaria (O(1))."""

@@ -68,7 +68,7 @@ complexity-analyzer/
 ├── docs/
 │   ├── architecture.md
 │   ├── developer_guide.md
-│   ├── execution.md   ← (this file)
+│   ├── execution.md
 │
 ├── requirements.txt
 ├── config.ini
@@ -80,7 +80,6 @@ complexity-analyzer/
 Before starting, make sure your LLM API keys are set as environment variables:
 
 setx GEMINI_API_KEY "your_api_key_here"
-setx OPENAI_API_KEY "your_openai_api_key_here"
 
 
 (Use export instead of setx on Linux/Mac.)

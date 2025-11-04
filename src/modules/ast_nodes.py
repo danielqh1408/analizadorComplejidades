@@ -112,3 +112,9 @@ class FunctionNode(ASTNode):
     name: str
     params: List[VarNode]
     body: SequenceNode
+
+@dataclass
+class UnaryOpNode(Expression):
+    """Nodo para operadores unarios (ej. NOT x)"""
+    op: str
+    operand: Expression
