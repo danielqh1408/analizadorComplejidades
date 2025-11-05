@@ -197,8 +197,20 @@ class AstTransformer(Transformer):
         return WhileLoopNode(condition=cond, body=body_statement)
 
     def call_node(self, func_name, args=None):
-        return CallNode(func_name=str(func_name), args=args.children if args else [])
-    
+        # Si args viene como tupla, conviértelo a lista
+        if isinstance(args, tuple):
+            args_list = list(args)
+        elif hasattr(args, "children"):
+            args_list = args.children
+        elif isinstance(args, list):
+            args_list = args
+        elif args is None:
+            args_list = []
+        else:
+            args_list = [args]
+            
+        return CallNode(func_name=str(func_name), args=args_list)
+        
     def arg_list(self, *args):
         return args
     

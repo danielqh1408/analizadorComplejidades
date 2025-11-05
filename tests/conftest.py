@@ -69,7 +69,7 @@ def metrics(config):
 
 # --- Mocking Fixtures ---
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def llm_mock(monkeypatch, logger):
     """
     Session-scoped, auto-used fixture to mock the LLMAssistant.
@@ -117,7 +117,7 @@ def llm_mock(monkeypatch, logger):
     logger.info("✅ LLMAssistant ha sido mockeado correctamente para la sesión de pruebas.")
 # --- API Test Client ---
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def client(llm_mock):
     """
     Provides a session-scoped FastAPI TestClient.

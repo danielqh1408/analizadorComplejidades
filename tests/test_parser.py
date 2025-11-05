@@ -48,7 +48,9 @@ def test_parse_simple_for(parser):
     
     for_body = for_loop.body
     assert isinstance(for_body, SequenceNode)
-    assert isinstance(for_body.statements[0], AssignNode)
+    inner_block = for_body.statements[0]
+    assert isinstance(inner_block, SequenceNode)
+    assert isinstance(inner_block.statements[0], AssignNode)
 
 def test_parse_if_else(parser):
     """Prueba el parseo de una sentencia IF-THEN-ELSE."""
@@ -75,7 +77,12 @@ def test_parse_if_else(parser):
     assert if_node.condition.op == ">"
     assert isinstance(if_node.then_branch, SequenceNode)
     assert isinstance(if_node.else_branch, SequenceNode)
-    assert if_node.else_branch.statements[0].value.value == 2
+
+    else_inner_block = if_node.else_branch.statements[0]
+    assert isinstance(else_inner_block, SequenceNode)
+    else_assignment = else_inner_block.statements[0]
+    assert isinstance(else_assignment, AssignNode)
+    assert else_assignment.value.value == 2
 
 def test_parse_if_no_else(parser):
     """Prueba el parseo de una sentencia IF-THEN sin ELSE."""
@@ -112,8 +119,10 @@ def test_parse_nested_loops(parser):
     outer_loop = ast[0].body.statements[0]
     assert isinstance(outer_loop, ForLoopNode)
     
-    inner_loop = outer_loop.body.statements[0]
-    assert isinstance(inner_loop, ForLoopNode)
+    inner_block = outer_loop.body.statements[0]
+    assert isinstance(inner_block, SequenceNode)
+    inner_loop = inner_block.statements[0]
+    assert isinstance(inner_loop, ForLoopNode) 
     assert inner_loop.variable.name == "j"
 
 # --- Tests de Casos Inválidos (Errores de Sintaxis) ---

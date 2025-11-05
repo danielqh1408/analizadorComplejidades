@@ -23,7 +23,7 @@ import asyncio
 import sys
 import uvicorn
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Literal
+from typing import Optional,Dict, Any, Literal
 
 # --- Framework Imports ---
 from fastapi import FastAPI, HTTPException
@@ -156,7 +156,7 @@ def run_deterministic_analysis(code: str) -> Dict[str, Any]:
         
         # 2. Parsing (Syntax Analysis)
         metrics_logger.start_timer("parsing")
-        ast = parser.parse(tokens)
+        ast = parser.parse_text(tokens)
         metrics_logger.end_timer("parsing")
         
         # 3. Complexity Analysis (AST Traversal)

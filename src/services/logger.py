@@ -57,14 +57,18 @@ def get_logger(name: str = "AnalyzerApp") -> logging.Logger:
     # Idempotency Check: If handlers are already configured, just return
     # the requested logger. This is thread-safe and efficient.
     if root_logger.hasHandlers():
-        return logging.getLogger(name)
+        child_logger = logging.getLogger(name)
+        child_logger.setLevel(root_logger.level)
+        return child_logger
 
     # If not configured, acquire lock to perform one-time setup.
     with _setup_lock:
         # Double-check inside the lock in case another thread
         # completed setup while this one was waiting.
         if root_logger.hasHandlers():
-            return logging.getLogger(name)
+            child_logger = logging.getLogger(name)
+            child_logger.setLevel(root_logger.level)
+            return child_logger
 
         # --- Begin One-Time Logger Configuration ---
         try:
@@ -133,6 +137,10 @@ def get_logger(name: str = "AnalyzerApp") -> logging.Logger:
 
             root_logger.info("Logger initialized successfully.")
 
+            child_logger = logging.getLogger(name)
+            child_logger.setLevel(root_logger.level)
+            return child_logger
+
         except Exception as e:
             # Catastrophic failure during logger setup
             # Fallback to a basic console logger to report the error
@@ -144,9 +152,8 @@ def get_logger(name: str = "AnalyzerApp") -> logging.Logger:
                 logging.Formatter("[%(levelname)s] (FallbackLogger) %(message)s")
             )
             root_logger.addHandler(fallback_handler)
-            root_logger.error("Logger setup failed", exc_info=True)
-            
-        return logging.getLogger(name)
+            root_logger.error("Logger setup failed", exc_info=True)    
+            return logging.getLogger(name)
 
 
 # --- Demo Block ---

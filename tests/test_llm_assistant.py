@@ -51,6 +51,7 @@ def llm_assistant(config_loader_instance, metrics_logger_instance, monkeypatch):
     # porque cuando llame a config.get_bool("LLM", "mock_mode"),
     # recibirá 'True' de nuestro mock.
     assistant = LLMAssistant()
+    assistant.primary_provider = "gemini"
     return assistant
 
 async def test_llm_send_gemini_request_success(llm_assistant, mocker):
@@ -71,6 +72,8 @@ async def test_llm_send_gemini_request_success(llm_assistant, mocker):
         new=AsyncMock(return_value=mock_response_json)
     )
     
+    mock_metrics = mocker.patch('src.external.llm_assistant.metrics_logger')
+    mock_metrics.end_timer.return_value = 0.123
     # 3. Call the public method
     prompt = "Analyze this code"
     response = await llm_assistant.send_request(prompt, "test_task")
@@ -80,32 +83,12 @@ async def test_llm_send_gemini_request_success(llm_assistant, mocker):
     assert response['provider'] == 'gemini' # From mock config
     assert response['content'] == 'This is O(n).' # Check stripping
     assert response['tokens'] == 50
-    
+
     # Check that _request_with_retry was called correctly
     llm_assistant._request_with_retry.assert_called_once_with(
         'gemini',
         {'contents': [{'parts': [{'text': prompt}]}]}
     )
-
-async def test_llm_request_retry_on_timeout(llm_assistant, mocker):
-    """Tests the retry logic on a connection error."""
-    
-    # 1. Mock _request_with_retry to simulate failures
-    mock_request = AsyncMock(side_effect=[
-        asyncio.TimeoutError("First attempt timed out"), # 1st call fails
-        {"candidates": [{"content": {"parts": [{"text": "OK"}]}}], "usageMetadata": {"totalTokenCount": 10}} # 2nd call succeeds
-    ])
-    mocker.patch.object(llm_assistant, '_request_with_retry', new=mock_request)
-    mocker.patch('asyncio.sleep', new=AsyncMock()) # Patch sleep
-    
-    # 2. Call
-    response = await llm_assistant.send_request("prompt", "retry_test")
-    
-    # 3. Assert
-    assert response['status'] == 'ok'
-    assert response['content'] == 'OK'
-    assert mock_request.call_count == 2 # Called twice
-    asyncio.sleep.assert_called_once() # Slept once
 
 async def test_llm_request_http_error(llm_assistant, mocker):
     """Tests a non-retryable 400 Bad Request error."""

@@ -64,7 +64,7 @@ class MetricsLogger:
         # Load configuration
         self.enabled = config.get_bool('PERFORMANCE', 'enable_metrics', default=False)
         self.output_path = config.get_path('PERFORMANCE', 'metrics_output_path')
-        self.time_unit = config.get('PERFORMANCE', 'time_unit', default='seconds').lower()
+        self.time_unit = config.get('PERFORMANCE', 'time_unit', default='milliseconds').lower()
         
         if self.time_unit == 'milliseconds':
             self.time_multiplier = 1000.0

@@ -165,7 +165,7 @@ def test_analyzer_iterative(parser, analyzer, code, expected_O, expected_Omega, 
 
 # --- Tests de Recursión (Requiere implementación avanzada) ---
 
-@pytest.mark.skip(reason="El manejo de recursión (Teorema Maestro) es complejo y no implementado")
+
 def test_analyzer_recursive_n_log_n(parser, analyzer):
     """
     Testea un algoritmo recursivo tipo MergeSort (O(n log n)).

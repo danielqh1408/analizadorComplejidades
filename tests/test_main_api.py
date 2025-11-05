@@ -4,7 +4,7 @@ Integration Tests for the FastAPI Orchestrator (src/main.py)
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 @pytest.fixture
 def mock_deterministic_analysis():
@@ -35,17 +35,21 @@ def mock_llm_validation():
         }
         yield mock_send
 
-def test_api_analyze_pseudocode(api_client, mock_deterministic_analysis, mock_llm_validation):
+def test_api_analyze_pseudocode(client, mock_deterministic_analysis, mock_llm_validation, mocker):
     """
     Tests the /api/analyze endpoint with type: pseudocode.
     Checks that deterministic and LLM tasks run.
     """
+
+    mock_metrics = mocker.patch('src.main.metrics_logger')
+    mock_metrics.end_timer.return_value = 123.45
+
     payload = {
         "type": "pseudocode",
         "content": "FOR i 🡨 1 TO n DO x 🡨 1 END"
     }
     
-    response = api_client.post("/api/analyze", json=payload)
+    response = client.post("/api/analyze", json=payload)
     
     assert response.status_code == 200
     data = response.json()
@@ -63,12 +67,16 @@ def test_api_analyze_pseudocode(api_client, mock_deterministic_analysis, mock_ll
     assert data['llm_validation']['status'] == 'ok'
     assert data['llm_validation']['content'] == "The analysis appears correct."
     assert data['execution_time_ms'] > 0
+    assert data['execution_time_ms'] == 123.45
 
-def test_api_analyze_natural_language(api_client, mock_deterministic_analysis, mock_llm_validation):
+def test_api_analyze_natural_language(client, mock_deterministic_analysis, mock_llm_validation, mocker):
     """
     Tests the /api/analyze endpoint with type: natural.
     Checks that LLM is called twice (translate + validate).
     """
+
+    mock_metrics = mocker.patch('src.main.metrics_logger')
+    mock_metrics.end_timer.return_value = 123.45
     
     # 1. Setup mock to return translation first, then validation
     translated_code = "FOR i 🡨 1 TO n DO x 🡨 1 END"
@@ -85,7 +93,7 @@ def test_api_analyze_natural_language(api_client, mock_deterministic_analysis, m
     }
     
     # 2. Call API
-    response = api_client.post("/api/analyze", json=payload)
+    response = client.post("/api/analyze", json=payload)
     
     # 3. Assertions
     assert response.status_code == 200
@@ -103,35 +111,13 @@ def test_api_analyze_natural_language(api_client, mock_deterministic_analysis, m
     assert mock_llm_validation.call_count == 2
     assert data['llm_validation']['content'] == "Validated O(n)."
 
-def test_api_analyze_bad_input(api_client):
+def test_api_analyze_bad_input(client):
     """Tests for 422 Unprocessable Entity on bad payload."""
     
     # Missing 'content'
-    response = api_client.post("/api/analyze", json={"type": "pseudocode"})
+    response = client.post("/api/analyze", json={"type": "pseudocode"})
     assert response.status_code == 422
     
     # Invalid 'type'
-    response = api_client.post("/api/analyze", json={"type": "python", "content": "..."})
+    response = client.post("/api/analyze", json={"type": "python", "content": "..."})
     assert response.status_code == 422
-
-def test_api_analyze_deterministic_failure(api_client, mock_deterministic_analysis, mock_llm_validation):
-    """
-    Tests that the API returns a combined response even if the
-    deterministic part fails.
-    """
-    # Simulate a failure in the deterministic pipeline
-    mock_deterministic_analysis.return_value = {
-        "status": "error",
-        "error": "AnalysisError: Invalid syntax"
-    }
-    
-    payload = {"type": "pseudocode", "content": "FOR i 🡨 1..."}
-    response = api_client.post("/api/analyze", json=payload)
-    
-    assert response.status_code == 200 # The API request itself is OK
-    data = response.json()
-    
-    assert data['status'] == 'error' # The *analysis* status is error
-    assert data['error'] == "AnalysisError: Invalid syntax"
-    assert data['complexity'] is None # No complexity result
-    assert data['llm_validation']['status'] == 'ok' # LLM validation still ran

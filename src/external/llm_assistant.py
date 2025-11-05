@@ -57,14 +57,18 @@ class LLMAssistant:
     
     def __init__(self):
 
-        if config.get_bool("LLM", "mock_mode", default=False):
-            return {"text": "Simulated response for test."}
         """
         Initializes the LLM Assistant, loading configuration from the
         global 'config' instance.
         """
         logger.info("Initializing LLMAssistant...")
         
+        if config.get_bool("LLM", "mock_mode", default=False):
+            self.mock_mode = True
+            self.mock_response = {"text": "Simulated response for test."}
+            logger.info("✅ LLMAssistant inicializado en modo simulado (mock_mode=True).")
+            return
+
         # --- Load General Config ---
         self.primary_provider = config.get('LLM', 'primary_provider', default='gemini')
         self.timeout = config.get_int('API', 'timeout', default=30)
