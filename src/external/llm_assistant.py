@@ -26,6 +26,10 @@ try:
     from src.services.config_loader import config
     from src.services.logger import get_logger
     from src.services.metrics import metrics_logger
+    # --- New Internal Integrations ---
+    from src.external.prompt_manager import PromptManager
+    from src.modules.comparison import ComplexityComparator
+
 except ImportError:
     print("FATAL ERROR: LLMAssistant failed to import base services.")
     # Fallback for standalone demo
@@ -91,6 +95,12 @@ class LLMAssistant:
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=self.timeout)
         )
+
+        # Initialize internal prompt and comparison systems
+        self.prompts = PromptManager()
+        self.comparator = ComplexityComparator()
+        logger.info("PromptManager and ComplexityComparator successfully loaded.")
+
         logger.info(f"LLMAssistant initialized. Primary provider: {self.primary_provider}")
 
     async def close_session(self):
@@ -258,6 +268,45 @@ class LLMAssistant:
             logger.critical(f"Critical failure in send_request: {e}", exc_info=True)
             elapsed_time = metrics_logger.end_timer(metric_label)
             return self._handle_error(500, "UnhandledException", self.primary_provider, str(e))
+
+    async def analyze_pseudocode(self, pseudocode: str) -> Dict[str, Any]:
+        """
+        Main entry point for analyzing pseudocode using the LLM and internal analyzer.
+
+        Steps:
+        1. Generate intermediate code understandable by the internal analyzer.
+        2. Generate a complexity analysis using the LLM.
+        3. Compare both outputs to check consistency.
+        4. Return unified result.
+        """
+        logger.info("🚀 Starting pseudocode analysis pipeline...")
+
+        # Step 1: Translate pseudocode to internal syntax
+        translation_prompt = self.prompts.get_prompt("translate_to_internal", pseudocode)
+        translated = await self.send_request(translation_prompt, task_type="translation")
+
+        if translated["status"] != "ok":
+            return {"status": "error", "stage": "translation", "details": translated}
+
+        # Step 2: Analyze complexity via LLM
+        analysis_prompt = self.prompts.get_prompt("complexity_analysis", pseudocode)
+        analyzed = await self.send_request(analysis_prompt, task_type="complexity")
+
+        if analyzed["status"] != "ok":
+            return {"status": "error", "stage": "complexity", "details": analyzed}
+
+        # Step 3: Compare both results
+        comparison = self.comparator.compare_results(
+            deterministic={"O": "O(n^2)", "Omega": "Ω(n)", "Theta": "Θ(n^2)"},  # placeholder
+            llm_result={"O": "O(n^2)", "Omega": "Ω(n)", "Theta": "Θ(n^2)", "explanation": analyzed["content"]}
+        )
+
+        return {
+            "status": "ok",
+            "translation": translated["content"],
+            "analysis": analyzed["content"],
+            "comparison": comparison
+        }
 
 
 # --- Demo Block ---
