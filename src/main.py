@@ -150,27 +150,19 @@ def run_deterministic_analysis(code: str) -> Dict[str, Any]:
         logger.info("Deterministic pipeline started...")
         
         # 1. Lexical Analysis
-        metrics_logger.start_timer("lexing")
-        tokens = lexer.tokenize(code)
-        metrics_logger.end_timer("lexing")
+        metrics_logger.start_timer("parsing")
+        ast = parser.parse_text(code)
+        metrics_logger.end_timer("parsing")
         
         # 2. Parsing (Syntax Analysis)
         metrics_logger.start_timer("parsing")
-        ast = parser.parse_text(tokens)
+        result_dict = analyzer.analyze(ast)
         metrics_logger.end_timer("parsing")
         
-        # 3. Complexity Analysis (AST Traversal)
-        metrics_logger.start_timer("analyzing")
-        # analyze() should return a dict, e.g.,
-        # {"O": "O(n)", "Omega": "Ω(n)", "Theta": "Θ(n)", "raw": "n"}
-        result_dict = analyzer.analyze(ast) 
-        metrics_logger.end_timer("analyzing")
-
         logger.info(f"Deterministic pipeline successful. Complexity: {result_dict.get('O')}")
         
         return {
             "status": "ok",
-            "token_count": len(tokens),
             "complexity": result_dict
         }
 

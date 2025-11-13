@@ -79,8 +79,8 @@ class LLMAssistant:
         try:
             self.gemini_model = config.get('LLM', 'gemini_model')
             self.gemini_url = config.get('LLM', 'gemini_api_base_url')
-            gemini_key_env = config.get('SECURITY', 'gemini_api_key_env')
-            self.api_keys['gemini'] = config.get_api_key(gemini_key_env)
+            GEMINI_API_KEY = config.get('SECURITY', 'GEMINI_API_KEY')
+            self.api_keys['gemini'] = config.get_api_key(GEMINI_API_KEY)
         except KeyError as e:
             logger.warning(f"Gemini config incomplete. Provider disabled. Missing: {e}")
             self.api_keys['gemini'] = None
