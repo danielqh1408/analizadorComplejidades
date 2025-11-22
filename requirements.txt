@@ -1,35 +1,11 @@
-# --- Núcleo del entorno ---
-python-dotenv==1.0.1          # manejo de variables de entorno (API keys, rutas, etc.)
-numpy==1.23.5                 # operaciones vectorizadas compatibles con Numba 0.56.x
-sympy==1.12                   # álgebra simbólica, recurrencias, simplificación matemática
-numba==0.58.1                 # compilación JIT y paralelismo CPU/GPU
-cython==3.0.10                # módulos de bajo nivel tipo C
-cupy-cuda12x==12.1.0          # procesamiento paralelo en GPU (para RTX 4060 Ti, CUDA 12)
-joblib==1.4.2                 # ejecución en paralelo (ProcessPool / ThreadPool)
-multiprocess==0.70.16         # versión extendida de multiprocessing con mejor compatibilidad
-psutil==6.1.0                 # detección de núcleos, afinidad CPU y métricas de rendimiento
-
-# --- Parsing y análisis ---
-lark-parser==0.12.0           # para construir gramáticas (Lexer/Parser del pseudocódigo)
-regex==2024.9.11              # motor regex extendido y más rápido que 're'
-ply==3.11                     # alternativa ligera basada en Yacc/Lex para parser
-antlr4-python3-runtime==4.13.1 # otra opción si decides formalizar la gramática en ANTLR
-
-# --- Visualización y depuración ---
-rich==13.8.0                  # salida en consola con color y formato (tablas, progreso)
-graphviz==0.20.3              # visualización de árboles AST y diagramas de flujo
-matplotlib==3.9.2             # gráficos de complejidad, curvas de tiempo, etc.
-
-# --- API y conectividad ---
-requests==2.32.3              # comunicación con Gemini API o backend REST
-aiohttp==3.10.5               # peticiones asíncronas (si integras Gemini vía streaming)
-fastapi==0.115.0              # backend liviano para tu API / orquestador
-uvicorn==0.30.1               # servidor ASGI rápido para FastAPI
-
-# --- Utilidades y estabilidad ---
-tqdm==4.66.5                  # barras de progreso en análisis largos
-colorama==0.4.6               # colores multiplataforma en CLI
-pytest==8.3.3                 # framework de pruebas unitarias
-httpx==0.27.0                # cliente HTTP moderno y asíncrono
-pytest-mock==3.15.1            # utilidades de mocking para pruebas con pytest
-pytest-asyncio==1.2.0        # soporte para pruebas asíncronas con pytest
+# src/requirements.txt 
+fastapi==0.115.0
+uvicorn==0.30.1
+lark==1.1.9
+sympy==1.12
+google-generativeai==0.7.2
+python-dotenv==1.0.1
+pydantic==2.8.2
+aiohttp==3.10.5
+requests==2.32.3
+jinja2==3.1.4         # Para reportes HTML si los haces

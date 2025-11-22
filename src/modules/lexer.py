@@ -1,3 +1,5 @@
+'''
+
 """
 Módulo Lexer (Tokenizer) para el Analizador de Complejidades.
 
@@ -213,3 +215,5 @@ if __name__ == "__main__":
     except SyntaxError as e:
         print("--- ✅ Error Capturado Correctamente ---")
         print(f"Error: {e}")
+"""
+'''
