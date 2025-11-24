@@ -7,11 +7,36 @@ st.set_page_config(page_title="Analizador de Algoritmos", layout="wide", page_ic
 # --- CSS para mejorar la UI ---
 st.markdown("""
 <style>
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #f0f2f6; border-radius: 5px; }
-    .stTabs [aria-selected="true"] { background-color: #e0e7ff; color: #3b82f6; }
+
+    .stTabs [data-baseweb="tab-list"] { 
+        gap: 12px; 
+    }
+
+    .stTabs [data-baseweb="tab"] { 
+        height: 50px !important;
+        padding: 10px 22px !important;
+        background-color: #333 !important; 
+        border-radius: 8px !important;
+        color: #eee !important;
+        border: 1px solid #555 !important;
+        font-weight: 600;
+        transition: 0.2s ease-in-out;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #444 !important;
+        border-color: #777 !important;
+    }
+
+    .stTabs [aria-selected="true"] { 
+        background-color: #666 !important;
+        color: white !important;
+        border-color: #aaa !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
+
 
 st.title("🧬 Analizador de Complejidad Algorítmica")
 st.markdown("---")
