@@ -5,9 +5,12 @@ from src.modules.parser import PseudocodeParser
 from src.modules.analyzer import ComplexityAnalyzer
 import uvicorn
 import logging
-import traceback
+import os
+from dotenv import load_dotenv
 
-logging.basicConfig(level=logging.INFO)
+# Carga .env y configura log básico (Reemplazando logger.py complejo)
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Orchestrator")
 
 app = FastAPI(title="Analizador de Complejidad Híbrido")
@@ -18,13 +21,14 @@ class CodeRequest(BaseModel):
 @app.post("/analyze")
 async def analyze_algorithm(request: CodeRequest):
     response_data = {
-        "status": "partial_success", # Asumimos éxito parcial por defecto
+        "status": "partial_success",
         "input_analysis": {},
         "hard_analysis": {"error": "No ejecutado"},
-        "soft_analysis": {}
+        "soft_analysis": {},
+        "ast_debug": None  # Nuevo campo para el AST
     }
 
-    # --- PASO 1: Normalización ---
+    # 1. Normalización
     logger.info("1. Normalizando entrada...")
     clean_code = normalize_code(request.code)
     response_data["input_analysis"] = {
@@ -33,36 +37,42 @@ async def analyze_algorithm(request: CodeRequest):
     }
     
     if not clean_code or "Error" in clean_code:
-        # Si falla el normalizador, aquí sí paramos porque no hay código
         raise HTTPException(status_code=400, detail="Error normalizando código")
 
-    # --- PASO 2 y 3: Parser y Analyzer (Bloque Try-Catch Gigante) ---
+    # 2. Parsing y Análisis
     math_result = {}
     try:
-        logger.info("2. Intentando Parsing y Análisis Matemático...")
+        logger.info("2. Parsing y Análisis...")
         parser = PseudocodeParser()
-        ast = parser.parse_text(clean_code)
+        ast_objects = parser.parse_text(clean_code) # Esto devuelve una lista de FunctionNode
         
+        # Serializar AST para el Frontend (Requisito nuevo)
+        # Como parse_text devuelve una lista de funciones (start_node), las procesamos todas
+        ast_json = [func.to_dict() for func in ast_objects]
+        response_data["ast_debug"] = ast_json
+
+        # Análisis Matemático (Asumimos que analizamos la primera función principal)
         analyzer = ComplexityAnalyzer()
-        math_result = analyzer.analyze(ast)
-        
+        if ast_objects:
+            # Analizamos la primera función encontrada como punto de entrada
+            math_result = analyzer.analyze(ast_objects[0])
+        else:
+            math_result = {"cost_expression": "0", "big_o": "O(1)"}
+
         response_data["hard_analysis"] = math_result
-        response_data["status"] = "success" # Si llegamos aquí, todo fue perfecto
+        response_data["status"] = "success"
 
     except Exception as e:
-        logger.error(f"⚠ El análisis determinista falló: {e}")
-        # Guardamos el error pero NO detenemos el programa
+        logger.error(f"Error determinista: {e}")
         math_result = {
-            "cost_expression": "No calculable (Error de sintaxis/estructura)",
-            "big_o": "Indeterminado (Ver análisis de IA)",
+            "cost_expression": "Error de sintaxis/estructura",
+            "big_o": "Indeterminado (Ver IA)",
             "error_details": str(e)
         }
         response_data["hard_analysis"] = math_result
-        # No cambiamos status a 'error' fatal, dejamos 'partial_success'
 
-    # --- PASO 4: Consultor de Estrategia (Siempre se ejecuta) ---
-    logger.info("4. Consultando estrategia al LLM...")
-    # Pasamos el 'clean_code' y el resultado matemático (aunque tenga error)
+    # 3. Consultor de Estrategia
+    logger.info("3. Consultando IA...")
     strategy_report = explain_strategy(clean_code, math_result)
     response_data["soft_analysis"] = strategy_report
 

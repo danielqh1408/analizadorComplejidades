@@ -1,140 +1,129 @@
 import sympy
-from sympy import Symbol, Sum, simplify, O, oo
-from src.modules.ast_nodes import ASTVisitor, SequenceNode, ForLoopNode, WhileLoopNode, IfNode, AssignNode, CallNode, FunctionNode, BinOpNode, ConstNode, VarNode, UnaryOpNode
+from sympy import Symbol, Sum, simplify, O, oo, Integer
+from src.modules.ast_nodes import ASTVisitor
 
 class ComplexityAnalyzer(ASTVisitor):
     def __init__(self):
-        # Símbolo global para el tamaño de la entrada 'n'
+        # Definimos 'n' como entero positivo para ayudar a SymPy a simplificar Max(0, ...)
         self.n = Symbol('n', integer=True, positive=True)
         self.current_function = None
         self.is_recursive = False
         self.recurrence_relation = None
 
     def analyze(self, ast_node):
-        """
-        Entrada: Nodo raíz del AST (generalmente FunctionNode o SequenceNode).
-        Salida: Diccionario con el análisis de complejidad.
-        """
-        # Reiniciar estado
         self.is_recursive = False
         self.recurrence_relation = None
         
-        # Calcular la expresión de costo exacto (T(n))
+        # Calculamos el COSTO (T(n))
         cost_expr = self.visit(ast_node)
         
-        # Simplificar la expresión matemática
+        # Simplificación agresiva
         cost_expr = simplify(cost_expr)
         
-        # Calcular Big-O (Peor caso)
+        # Calcular Big-O
         try:
-            # Calculamos el límite cuando n -> infinito para O grande
             big_o = O(cost_expr, (self.n, oo))
         except:
-            big_o = "Indeterminado (requiere análisis LLM)"
+            big_o = "Indeterminado"
 
         return {
-            "cost_expression": str(cost_expr),
-            "big_o": str(big_o),
+            "cost_expression": str(cost_expr).replace("**", "^"), # Formato bonito
+            "big_o": str(big_o).replace("**", "^"),
             "is_recursive": self.is_recursive,
             "recurrence_equation": str(self.recurrence_relation) if self.is_recursive else None
         }
 
-    # --- Visitantes de Estructuras de Control ---
+    # --- HELPER: Extraer valor simbólico para límites de bucles ---
+    def _get_symbolic_value(self, node):
+        """Devuelve el SÍMBOLO matemático (N) o el número (0, 1)"""
+        node_type = type(node).__name__
+        
+        if node_type == 'VarNode':
+            # Si la variable es N, M, Size, es nuestro símbolo de complejidad
+            if str(node.name).upper() in ['N', 'M', 'SIZE', 'LONGITUD', 'CANTIDAD']:
+                return self.n
+            # Si es una variable de control (i, j), la devolvemos como símbolo para la sumatoria
+            return Symbol(node.name, integer=True)
+        
+        if node_type == 'ConstNode':
+            return Integer(node.value)
+            
+        if node_type == 'BinOpNode':
+            left = self._get_symbolic_value(node.left)
+            right = self._get_symbolic_value(node.right)
+            if node.op == '+': return left + right
+            if node.op == '-': return left - right
+            if node.op == '*': return left * right
+            if node.op == '/': return left / right
+            
+        # Si es algo complejo (vector[i]), asumimos que no afecta los límites o es N
+        return self.n
+
+    # --- Visitantes de COSTO (Retornan unidades de tiempo: 1, N, etc.) ---
 
     def visit_FunctionNode(self, node):
         self.current_function = node.name
-        # El costo de una función es el costo de su cuerpo
         return self.visit(node.body)
 
     def visit_SequenceNode(self, node):
-        # El costo de una secuencia es la suma de los costos de sus instrucciones
         total_cost = 0
         for stmt in node.statements:
             total_cost += self.visit(stmt)
         return total_cost
 
     def visit_ForLoopNode(self, node):
-        # Análisis DETERMINISTA de bucles usando Sumatorias
-        # 1. Obtener límites. Si son variables desconocidas, asumimos 'n' o constantes.
-        start_val = self.visit(node.start)
-        end_val = self.visit(node.end)
+        # 1. Obtener límites SIMBÓLICOS (no costo)
+        start_val = self._get_symbolic_value(node.start)
+        end_val = self._get_symbolic_value(node.end)
         
-        # Si los límites no son símbolos matemáticos, forzamos 'n' para el análisis asintótico
-        if not isinstance(end_val, (sympy.Basic, int)):
-            end_val = self.n
-
         # 2. Calcular costo del cuerpo
         body_cost = self.visit(node.body)
         
-        # 3. Crear variable de iteración simbólica
-        iter_var = Symbol(node.variable.name)
+        # 3. Sumatoria
+        iter_var = Symbol(node.variable.name, integer=True)
         
-        # 4. La complejidad es la Sumatoria del costo del cuerpo desde start hasta end
-        # Sum(Cuerpo, (i, inicio, fin))
+        # Costo del bucle: Suma(Cuerpo) + Costo de evaluar límites y saltos
+        # Simplificación: Suma(Cuerpo, start, end)
         summation = Sum(body_cost, (iter_var, start_val, end_val))
         
-        # Intentar resolver la sumatoria (closed form)
         return summation.doit()
 
     def visit_WhileLoopNode(self, node):
-        # Los While son difíciles de predecir determinísticamente.
-        # Asumimos peor caso O(n) multiplicado por el cuerpo, o marcamos para el LLM.
+        # Estimación de peor caso para While: O(N) * cuerpo
         body_cost = self.visit(node.body)
-        # Representamos el número de iteraciones como 'n' genérico para análisis de peor caso
         return self.n * body_cost
 
     def visit_IfNode(self, node):
-        # Costo = Costo(Condición) + Max(Costo(Then), Costo(Else))
         cond_cost = self.visit(node.condition)
         then_cost = self.visit(node.then_branch)
         else_cost = self.visit(node.else_branch) if node.else_branch else 0
-        
-        # Para Big-O (peor caso), tomamos la rama más costosa
-        # Usamos una función Max simbólica o simplificamos si son comparables
-        try:
-            worst_branch = sympy.Max(then_cost, else_cost)
-        except:
-            worst_branch = then_cost + else_cost # Aproximación conservadora
-            
-        return cond_cost + worst_branch
+        # Peor caso: la rama más cara
+        return cond_cost + sympy.Max(then_cost, else_cost)
 
     def visit_CallNode(self, node):
-        # Detección de Recursividad
         if self.current_function and node.func_name == self.current_function:
             self.is_recursive = True
-            # Intentamos extraer el argumento para formar T(n/2) o T(n-1)
-            # Esto es una simplificación: tomamos el primer argumento como el reductor
-            arg = self.visit(node.args[0]) if node.args else self.n
-            
-            # Creamos un símbolo de función T
+            # Recurrencia detectada
+            arg_val = self._get_symbolic_value(node.args[0]) if node.args else self.n
             T = sympy.Function('T')
-            term = T(arg)
-            
-            # Guardamos la relación para el reporte (ej: T(n/2))
-            self.recurrence_relation = f"T(n) = ... + {term}"
-            return term
-        else:
-            # Llamada a otra función: Asumimos O(1) si no la conocemos, 
-            # o O(n) si es una función de sistema costosa.
-            return 1
+            self.recurrence_relation = f"T(n) = ... + T({arg_val})"
+            return T(arg_val)
+        return 1 # Llamada externa cuesta 1
 
-    # --- Visitantes de Operaciones Básicas (Costo = 1) ---
-
+    # --- Operaciones Básicas ---
+    # CORRECCIÓN CRÍTICA: Estas retornan COSTO CONSTANTE (1), no el símbolo
+    
     def visit_AssignNode(self, node):
-        # Asignación cuesta 1 unidad de tiempo + costo de evaluar la expresión
-        return 1 + self.visit(node.value)
+        return 1 + self.visit(node.value) # Costo asignación + costo evaluar expr
 
     def visit_BinOpNode(self, node):
-        return 1 # Operación aritmética simple cuesta 1
+        return 1 # a + b cuesta 1 ciclo
 
     def visit_UnaryOpNode(self, node):
         return 1
 
     def visit_VarNode(self, node):
-        # Si la variable es 'n' o una variable de tamaño conocida, devolver el símbolo N
-        if node.name.lower() in ['n', 'm', 'size', 'length']:
-            return self.n
-        return Symbol(node.name) # Devolver como símbolo genérico
+        return 1 # Leer memoria cuesta 1 ciclo (¡Aquí estaba el error!)
 
     def visit_ConstNode(self, node):
-        return node.value
+        return 1 # Leer constante cuesta 1 ciclo
