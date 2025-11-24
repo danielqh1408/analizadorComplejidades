@@ -23,7 +23,7 @@ def normalize_code(user_input: str) -> str:
     if not api_key:
         return "Error: API Key no configurada."
 
-    model = genai.GenerativeModel('gemini-2.5-flash') 
+    model = genai.GenerativeModel('gemini-3-pro-preview') 
     
     # GRAMÁTICA EXACTA DE TU PARSER (Simplificada para el prompt)
     # Esta gramática coincide con lo que definimos para Lark
@@ -94,7 +94,7 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
         return {"error": "Sin API Key"}
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-3-pro-preview')
         
         prompt = f"""
         ACTÚA COMO UN PROFESOR EXPERTO EN ANÁLISIS DE ALGORITMOS.
