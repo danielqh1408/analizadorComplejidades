@@ -1,9 +1,10 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-# Si no tienes un logger configurado aún, usa print o logging básico temporalmente
-# from src.services.logger import get_logger 
 import logging
+import time
+import random
+import json
 
 load_dotenv()
 
@@ -16,6 +17,32 @@ if not api_key:
 else:
     genai.configure(api_key=api_key)
 
+def retry_api_call(func, *args, **kwargs):
+    """
+    Intenta llamar a la API hasta 3 veces con espera exponencial si falla por cuota.
+    """
+    max_retries = 3
+    base_delay = 2  # Segundos
+
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            error_str = str(e)
+            # Detectar error 429 o ResourceExhausted
+            if "429" in error_str or "ResourceExhausted" in error_str:
+                if attempt < max_retries - 1:
+                    # Exponential backoff + jitter
+                    sleep_time = (base_delay * (30 ** attempt)) + random.uniform(0, 1)
+                    logger.warning(f"Rate limit alcanzado. Reintentando en {sleep_time:.2f}s... (Intento {attempt + 1}/{max_retries})")
+                    time.sleep(sleep_time)
+                else:
+                    logger.error("Se agotaron los reintentos por Rate Limit.")
+                    raise e
+            else:
+                # Si es otro error, fallar inmediatamente
+                raise e
+
 def normalize_code(user_input: str) -> str:
     """
     Toma código sucio/natural y lo convierte en Pascal estricto para Lark.
@@ -23,7 +50,7 @@ def normalize_code(user_input: str) -> str:
     if not api_key:
         return "Error: API Key no configurada."
 
-    model = genai.GenerativeModel('gemini-2.5-pro') 
+    model = genai.GenerativeModel('gemini-2.5-flash') 
     
     # GRAMÁTICA EXACTA DE TU PARSER (Simplificada para el prompt)
     # Esta gramática coincide con lo que definimos para Lark
@@ -77,7 +104,7 @@ def normalize_code(user_input: str) -> str:
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = retry_api_call(model.generate_content, prompt)
         # Limpieza básica por si el LLM pone markdown a pesar de la instrucción
         code = response.text.replace("```pascal", "").replace("```", "").strip()
         return code
@@ -94,7 +121,7 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
         return {"error": "Sin API Key"}
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = f"""
         ACTÚA COMO UN PROFESOR EXPERTO EN ANÁLISIS DE ALGORITMOS (Experto en Cormen y Bisbal Riera).
@@ -137,19 +164,18 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
             - SI ES RECURSIVO: Explica brevemente cómo se aplicaría el Árbol de Recurrencia o el Teorema Maestro para llegar al resultado.
             - SI ES VORAZ/DINÁMICO: Explica la subestructura óptima o la elección codiciosa.).",
             "complexity_validation": "Confirma si el cálculo matemático ({math_result.get('big_o')}) es correcto o si hay matices (ej: caso promedio vs peor caso).",
-            "pattern_identified": "Nombre del patrón o algoritmo clásico (ej: MergeSort, Mochila, Viajero, Busqueda Binaria, etc.)"
+            "pattern_identified": "Nombre del patrón o algoritmo clásico (ej: MergeSort, Mochila, Viajero, Busqueda Binaria, etc.)",
             "method_used": "Indica qué método teórico justifica mejor la complejidad:
-            - "Método de Sumatorias/Iteración" (Para bucles)
-            - "Teorema Maestro" (Para T(n) = aT(n/b) + f(n))
-            - "Árbol de Recurrencia" (Para recursión irregular)
-            - "Método de Sustitución" (Para demostraciones complejas)."
+            - 'Método de Sumatorias/Iteración' (Para bucles)
+            - 'Teorema Maestro' (Para T(n) = aT(n/b) + f(n))
+            - 'Árbol de Recurrencia' (Para recursión irregular)
+            - 'Método de Sustitución' (Para demostraciones complejas)."
         }}
         """
         
-        response = model.generate_content(prompt)
+        response = retry_api_call(model.generate_content, prompt)
         # Limpieza agresiva para asegurar JSON válido
         text = response.text.replace("```json", "").replace("```", "").strip()
-        import json
         return json.loads(text)
         
     except Exception as e:
