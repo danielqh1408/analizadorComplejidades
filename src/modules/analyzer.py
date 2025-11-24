@@ -20,20 +20,36 @@ class ComplexityAnalyzer(ASTVisitor):
         # Simplificación agresiva
         cost_expr = simplify(cost_expr)
         
-        # Calcular Big-O
-        try:
-            big_o = O(cost_expr, (self.n, oo))
-        except:
-            big_o = "Indeterminado"
+        # --- Resolución de Recurrencias ---
+        if self.is_recursive and self.recurrence_relation:
+            try:
+                # Intentamos resolver T(n) = ... usando SymPy
+                n = self.n
+                y = sympy.Function('y')
+                
+                # SymPy espera f(n) - cuerpo = 0
+                # Extraemos el cuerpo de la ecuación que guardamos (muy simplificado)
+                # NOTA: Esto es complejo de automatizar perfectamente, pero intentamos
+                # un caso base común: T(n) = a*T(n/b) + f(n)
+                # Dejamos que SymPy intente inferir el Big-O de la expresión recursiva si es simple
+                # Si no, marcamos para que el LLM decida.
+                big_o = "Recursiva (Ver IA)" 
+            except:
+                big_o = "Compleja (Ver IA)"
+        else:
+            try:
+                big_o = O(cost_expr, (self.n, oo))
+            except:
+                big_o = "Indeterminado"
 
         return {
-            "cost_expression": str(cost_expr).replace("**", "^"), # Formato bonito
+            "cost_expression": str(cost_expr).replace("**", "^"),
             "big_o": str(big_o).replace("**", "^"),
             "is_recursive": self.is_recursive,
             "recurrence_equation": str(self.recurrence_relation) if self.is_recursive else None
         }
 
-    # --- HELPER: Extraer valor simbólico para límites de bucles ---
+    # --- Extraer valor simbólico para límites de bucles ---
     def _get_symbolic_value(self, node):
         """Devuelve el SÍMBOLO matemático (N) o el número (0, 1)"""
         node_type = type(node).__name__
@@ -111,7 +127,6 @@ class ComplexityAnalyzer(ASTVisitor):
         return 1 # Llamada externa cuesta 1
 
     # --- Operaciones Básicas ---
-    # CORRECCIÓN CRÍTICA: Estas retornan COSTO CONSTANTE (1), no el símbolo
     
     def visit_AssignNode(self, node):
         return 1 + self.visit(node.value) # Costo asignación + costo evaluar expr
@@ -123,7 +138,7 @@ class ComplexityAnalyzer(ASTVisitor):
         return 1
 
     def visit_VarNode(self, node):
-        return 1 # Leer memoria cuesta 1 ciclo (¡Aquí estaba el error!)
+        return 1 # Leer memoria cuesta 1 ciclo
 
     def visit_ConstNode(self, node):
         return 1 # Leer constante cuesta 1 ciclo

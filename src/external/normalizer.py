@@ -97,16 +97,18 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
         model = genai.GenerativeModel('gemini-2.5-pro')
         
         prompt = f"""
-        ACTÚA COMO UN PROFESOR EXPERTO EN ANÁLISIS DE ALGORITMOS.
+        ACTÚA COMO UN PROFESOR EXPERTO EN ANÁLISIS DE ALGORITMOS (Experto en Cormen y Bisbal Riera).
         
         Analiza el siguiente código (Pascal Simplificado):
         --------------------------------------------------
         {clean_code}
         --------------------------------------------------
-        
-        Datos del Análisis Matemático Estático:
-        - Complejidad: {math_result.get('big_o', 'Desconocida')}
-        - Recurrencia detectada: {math_result.get('recurrence_equation', 'Ninguna')}
+
+        RESULTADOS DEL MOTOR DETERMINISTA:
+        - Ecuación de Coste: {math_result.get('cost_expression', 'No disponible')}
+        - Complejidad Calculada: {math_result.get('big_o', 'Indeterminada')}
+        - Recursivo: {math_result.get('is_recursive', False)}
+        - Ecuación de Recurrencia: {math_result.get('recurrence_equation', 'Ninguna')}
 
         TU TAREA:
         Genera un JSON válido con la siguiente estructura exacta.
@@ -120,13 +122,27 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
         5. "Ramificación y Poda (Branch & Bound)"
         6. "Heurístico / Aproximado"
         7. "Fuerza Bruta / Iterativo Simple" (Para bucles anidados básicos)
+        8. "MinMax / Adversarial" (Para algoritmos de juegos)
+
+        SI EL ALGORITMO ES RECURSIVO:
+        Genera una breve representación del "Árbol de Recurrencia" en texto ASCII o explica los niveles:
+        - Nivel 0: Coste k
+        - Nivel 1: Coste k/2...
+        Esto es para justificar el cálculo del Teorema Maestro.
 
         FORMATO DE RESPUESTA (JSON puro, sin markdown):
         {{
             "strategy": "Escribe aquí EXACTAMENTE una de las categorías de la lista anterior",
-            "explanation": "Explicación técnica breve (máx 2 frases) justificando la clasificación.",
+            "explanation": "Explicación técnica breve (máx 2 frases) justificando la clasificación (SI ES ITERATIVO: Explica cómo la sumatoria de los bucles lleva a la complejidad (Método de Iteración).
+            - SI ES RECURSIVO: Explica brevemente cómo se aplicaría el Árbol de Recurrencia o el Teorema Maestro para llegar al resultado.
+            - SI ES VORAZ/DINÁMICO: Explica la subestructura óptima o la elección codiciosa.).",
             "complexity_validation": "Confirma si el cálculo matemático ({math_result.get('big_o')}) es correcto o si hay matices (ej: caso promedio vs peor caso).",
             "pattern_identified": "Nombre del patrón o algoritmo clásico (ej: MergeSort, Mochila, Viajero, Busqueda Binaria, etc.)"
+            "method_used": "Indica qué método teórico justifica mejor la complejidad:
+            - "Método de Sumatorias/Iteración" (Para bucles)
+            - "Teorema Maestro" (Para T(n) = aT(n/b) + f(n))
+            - "Árbol de Recurrencia" (Para recursión irregular)
+            - "Método de Sustitución" (Para demostraciones complejas)."
         }}
         """
         

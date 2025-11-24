@@ -107,6 +107,7 @@ if analyze_btn and code_input:
                     with tab1:
                         st.markdown(f"### 🎯 Estrategia: {soft.get('strategy', 'Desconocida')}")
                         st.info(soft.get("explanation"))
+                        st.write(f"**Método de Análisis Teórico:** {soft.get('method_used', '-')}")
                         
                         c1, c2 = st.columns(2)
                         c1.metric("Complejidad Asintótica", hard.get("big_o", soft.get("complexity_validation", "?")))

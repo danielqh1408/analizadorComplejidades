@@ -1,24 +1,23 @@
 from lark import Lark, Transformer, v_args
 from src.modules.ast_nodes import *
 
+# --- Gramática de Lark (Robusta: CALL opcional) ---
 PSEUDOCODE_GRAMMAR = r"""
     ?start: function+ -> start_node
 
-    // Estructura de Función
     function: "FUNCTION" ID "(" [param_list] ")" "BEGIN" sequence "END" -> function_node
     param_list: ID ("," ID)* -> param_list
 
-    // Bloques y Sentencias
     ?statement: "BEGIN" sequence "END" -> sequence_node 
               | assign_statement
               | for_loop
               | while_loop
               | if_statement
-              | call_statement
+              | call_statement  // El orden importa poco aquí gracias a Lark
     
     sequence: statement* -> sequence_node
 
-    // Asignación
+    // Asignación (ID <- val o Array[...] <- val)
     assign_statement: (ID | array_access) ASSIGN expression -> assign_node
     
     // Bucles
@@ -28,22 +27,21 @@ PSEUDOCODE_GRAMMAR = r"""
     // Condicionales
     if_statement: "IF" "(" expression ")" "THEN" statement ["ELSE" statement] -> if_node
     
-    // Llamadas
-    call_statement: "CALL" ID "(" [arg_list] ")" -> call_node
+    // --- CORRECCIÓN AQUÍ: CALL es opcional ("CALL"? significa 0 o 1 vez) ---
+    call_statement: "CALL"? ID "(" [arg_list] ")" -> call_node
+    
     arg_list: expression ("," expression)* -> arg_list
 
-    // Expresiones Matemáticas (Jerarquía de operaciones)
+    // Expresiones
     ?expression: bool_or_expr
-    
     ?bool_or_expr: bool_and_expr (OR bool_and_expr)* -> bin_op
     ?bool_and_expr: comp_expr (AND comp_expr)* -> bin_op
     
-    // CORRECCIÓN AQUÍ: Listamos explícitamente los operadores en lugar de usar REL_OP
     ?comp_expr: arith_expr ((GT | LT | GTE | LTE | EQ | NEQ) arith_expr)* -> bin_op
     
     ?arith_expr: term ((PLUS | MINUS) term)* -> bin_op
     ?term: factor ((STAR | SLASH) factor)* -> bin_op
-    ?factor: NOT factor -> unary_op
+    ?factor: (PLUS | MINUS | NOT) factor -> unary_op
            | atom
     
     ?atom: NUMBER -> const_node
@@ -51,31 +49,25 @@ PSEUDOCODE_GRAMMAR = r"""
          | array_access
          | "(" expression ")"
 
-    // Acceso a Arrays (ej: vector[j], vector[j+1])
-    array_access: ID "[" expression "]" -> array_access_node
+    array_access: ID ("[" expression "]")+ -> array_access_node
 
     // --- TERMINALES ---
-    
     ASSIGN: "<-"
-
     ID: /[a-zA-Z_][a-zA-Z0-9_]*/
     NUMBER: /[0-9]+/
 
-    // Operadores Aritméticos
     PLUS: "+"
     MINUS: "-"
     STAR: "*"
     SLASH: "/"
     
-    // Operadores Relacionales
     GTE: ">="
     LTE: "<="
-    NEQ: "!="  | "<>"  // Soportamos ambos por seguridad
+    NEQ: "!=" | "<>"
     GT: ">"
     LT: "<"
     EQ: "="
     
-    // Palabras Clave (Case Insensitive)
     AND: /and/i
     OR: /or/i
     NOT: /not/i
@@ -91,7 +83,6 @@ PSEUDOCODE_GRAMMAR = r"""
     CALL: /call/i
     FUNCTION: /function/i
 
-    // Ignorar espacios y comentarios
     COMMENT: /\/\/[^\n]*/
     %import common.WS
     %ignore WS
@@ -104,27 +95,14 @@ class AstTransformer(Transformer):
         self.str = str
         self.int = int
     
-    # --- Transformadores Base ---
-    def start_node(self, *functions):
-        return list(functions)
+    def start_node(self, *functions): return list(functions)
+    def var_node(self, name): return VarNode(name=str(name))
+    def const_node(self, value): return ConstNode(value=int(value))
 
-    def var_node(self, name):
-        return VarNode(name=str(name))
-        
-    def const_node(self, value):
-        return ConstNode(value=int(value))
+    def array_access_node(self, name, *indices):
+        return VarNode(name=f"{name}_multidim") 
 
-    # --- Manejo de Arrays (NUEVO: Faltaba en el transformer anterior) ---
-    def array_access_node(self, name, index_expr):
-        # Para el análisis de complejidad, un acceso a array cuenta como 1 operación,
-        # igual que una variable, pero quizás quieras representarlo distinto.
-        # Por ahora, devolvemos una variable con nombre compuesto para simplificar el Analyzer.
-        # Ej: vector[j] -> VarNode("vector_j") o similar, o un nodo propio si analyzer lo soporta.
-        # Dado tu analyzer.py actual, VarNode es lo más seguro para que SymPy no se queje.
-        return VarNode(name=f"{name}_element") 
-
-    def unary_op(self, op, operand):
-        return UnaryOpNode(op=str(op), operand=operand)
+    def unary_op(self, op, operand): return UnaryOpNode(op=str(op), operand=operand)
 
     def bin_op(self, *args):
         if len(args) == 1: return args[0]
@@ -137,9 +115,7 @@ class AstTransformer(Transformer):
             i += 2
         return left
 
-    # --- Sentencias ---
     def assign_node(self, target, assign_op, value):
-        # Target puede ser ID (Token) o array_access (VarNode/Node)
         target_node = target if isinstance(target, VarNode) else VarNode(name=str(target))
         return AssignNode(target=target_node, value=value)
     
@@ -164,7 +140,8 @@ class AstTransformer(Transformer):
         return IfNode(condition=cond, then_branch=then_b, else_branch=else_b)
     
     def call_node(self, name, args=None):
-        # Manejo robusto de argumentos opcionales
+        # El argumento 'name' puede venir solo (si no hay CALL) o tras CALL.
+        # Lark a veces lo simplifica. El nombre de la función siempre es el token ID.
         safe_args = args if args else []
         if hasattr(safe_args, 'children'): safe_args = safe_args.children
         return CallNode(func_name=str(name), args=list(safe_args) if isinstance(safe_args, tuple) else safe_args)
@@ -180,10 +157,8 @@ class AstTransformer(Transformer):
     def arg_list(self, *args):
         return list(args)
 
-
 class PseudocodeParser:
     def __init__(self):
-        # start='start' asegura que esperamos una lista de funciones
         self.parser = Lark(PSEUDOCODE_GRAMMAR, parser='lalr', lexer='contextual', start='start')
         self.transformer = AstTransformer()
 
@@ -192,5 +167,4 @@ class PseudocodeParser:
             tree = self.parser.parse(code)
             return self.transformer.transform(tree)
         except Exception as e:
-            # Re-lanzar para que main.py lo capture y lo muestre
             raise SyntaxError(f"Error parsing: {e}")
