@@ -8,7 +8,7 @@ import json
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 api_key = os.getenv("GEMINI_API_KEY")
@@ -33,7 +33,7 @@ def retry_api_call(func, *args, **kwargs):
             if "429" in error_str or "ResourceExhausted" in error_str:
                 if attempt < max_retries - 1:
                     # Exponential backoff + jitter
-                    sleep_time = (base_delay * (30 ** attempt)) + random.uniform(0, 1)
+                    sleep_time = (base_delay * (10 ** attempt)) + random.uniform(0, 1)
                     logger.warning(f"Rate limit alcanzado. Reintentando en {sleep_time:.2f}s... (Intento {attempt + 1}/{max_retries})")
                     time.sleep(sleep_time)
                 else:
@@ -65,20 +65,25 @@ def normalize_code(user_input: str) -> str:
        END
     
     2. Asignación: Usa SIEMPRE "<-" (ej: x <- 0). NUNCA uses "=" ni ":=".
+
+    3. Variables: 
+       - ¡PROHIBIDO USAR 'VAR'! No declares variables.
+       - Las variables nacen al asignarse. 
+       - Si necesitas un array, úsalo directo: "A[i] <- 0".
     
-    3. Bucles FOR:
-       FOR i <- 0 TO n DO
+    4. Bucles FOR:
+       FOR i <- 0 TO n DO ...
        BEGIN
            ...
        END
     
-    4. Bucles WHILE:
+    5. Bucles WHILE:
        WHILE (condicion) DO
        BEGIN
            ...
        END
        
-    5. Condicional IF:
+    6. Condicional IF:
        IF (x > 0) THEN
        BEGIN
            ...
@@ -187,10 +192,3 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
             "complexity_validation": "N/A",
             "name_guess": "N/A"
         }
-
-# Pequeña prueba unitaria si ejecutas el archivo directo
-if __name__ == "__main__":
-    test_input = "haz una funcion que sume dos numeros a y b"
-    print(f"Input: {test_input}")
-    print("Output:")
-    print(normalize_code(test_input))

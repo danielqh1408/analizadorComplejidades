@@ -8,7 +8,7 @@ import logging
 import os
 from dotenv import load_dotenv
 
-# Carga .env y configura log básico (Reemplazando logger.py complejo)
+# Carga .env y configura log básico
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Orchestrator")
@@ -25,7 +25,7 @@ async def analyze_algorithm(request: CodeRequest):
         "input_analysis": {},
         "hard_analysis": {"error": "No ejecutado"},
         "soft_analysis": {},
-        "ast_debug": None  # Nuevo campo para el AST
+        "ast_debug": None
     }
 
     # 1. Normalización
@@ -46,12 +46,12 @@ async def analyze_algorithm(request: CodeRequest):
         parser = PseudocodeParser()
         ast_objects = parser.parse_text(clean_code) # Esto devuelve una lista de FunctionNode
         
-        # Serializar AST para el Frontend (Requisito nuevo)
-        # Como parse_text devuelve una lista de funciones (start_node), las procesamos todas
+        # Serializar AST para el Frontend
+        # Como parse_text devuelve una lista de funciones
         ast_json = [func.to_dict() for func in ast_objects]
         response_data["ast_debug"] = ast_json
 
-        # Análisis Matemático (Asumimos que analizamos la primera función principal)
+        # Análisis Matemático
         analyzer = ComplexityAnalyzer()
         if ast_objects:
             # Analizamos la primera función encontrada como punto de entrada

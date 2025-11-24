@@ -4,7 +4,6 @@ import graphviz
 
 st.set_page_config(page_title="Analizador de Algoritmos", layout="wide", page_icon="🧬")
 
-# --- CSS para mejorar la UI ---
 st.markdown("""
 <style>
 
@@ -41,7 +40,6 @@ st.markdown("""
 st.title("🧬 Analizador de Complejidad Algorítmica")
 st.markdown("---")
 
-# --- Helper para Graphviz ---
 def build_graphviz(node, dot=None, parent_id=None):
     """Convierte el JSON del AST en un objeto Graphviz recursivamente"""
     if dot is None:
@@ -52,17 +50,16 @@ def build_graphviz(node, dot=None, parent_id=None):
     # Crear ID único para el nodo actual
     node_id = str(id(node))
     
-    # Etiqueta del nodo (Tipo + Info extra si hay)
+    # Etiqueta del nodo
     label = node['type']
     if 'name' in node: label += f"\n({node['name']})"
     elif 'op' in node: label += f"\nOP: {node['op']}"
     elif 'value' in node: label += f"\nVAL: {node['value']}"
     
-    # Color especial para nodos clave
     color = '#eef2ff'
-    if 'Loop' in label: color = '#fef3c7' # Amarillo para bucles
-    if 'If' in label: color = '#fee2e2'   # Rojo para if
-    if 'Function' in label: color = '#dcfce7' # Verde para funciones
+    if 'Loop' in label: color = '#fef3c7'
+    if 'If' in label: color = '#fee2e2'
+    if 'Function' in label: color = '#dcfce7'
     
     dot.node(node_id, label, fillcolor=color)
     
@@ -106,7 +103,6 @@ if analyze_btn and code_input:
                     ast_data = data.get("ast_debug")
                     
                     # --- CÁLCULO DE "QUIÉN HIZO QUÉ" ---
-                    # Si hay error en hard, la IA hizo el 90%. Si no, 50/50.
                     if "error_details" in hard or hard.get("big_o") == "Indeterminado":
                         deter_pct = 15
                         ai_pct = 85
@@ -119,18 +115,18 @@ if analyze_btn and code_input:
                         status_msg = "Análisis Matemático Exacto"
 
                     # --- VISUALIZACIÓN DE LA CARGA DE TRABAJO ---
-                    st.subheader("📊 Desglose de Análisis")
+                    st.subheader("Desglose de Análisis")
                     st.progress(deter_pct / 100, text=f"Motor Determinista: {deter_pct}% | Consultor IA: {ai_pct}%")
                     if deter_pct > 50:
-                        st.success("✅ Cálculo matemático exitoso. La IA solo validó.")
+                        st.success("Cálculo matemático exitoso. La IA solo validó.")
                     else:
-                        st.warning("⚠ Limitación estructural detectada. La IA estimó la complejidad.")
+                        st.warning("Limitación estructural detectada. La IA estimó la complejidad.")
 
                     # --- TABS DE RESULTADOS ---
-                    tab1, tab2, tab3, tab4 = st.tabs(["📘 Informe", "🧮 Matemáticas", "🌳 Estructura (AST)", "💻 Código"])
+                    tab1, tab2, tab3, tab4 = st.tabs(["Informe", "Matemáticas", "Estructura (AST)", "Código"])
                     
                     with tab1:
-                        st.markdown(f"### 🎯 Estrategia: {soft.get('strategy', 'Desconocida')}")
+                        st.markdown(f"### Estrategia: {soft.get('strategy', 'Desconocida')}")
                         st.info(soft.get("explanation"))
                         st.write(f"**Método de Análisis Teórico:** {soft.get('method_used', '-')}")
                         
