@@ -142,7 +142,7 @@ if analyze_btn and code_input:
                             st.write("### Derivación Paso a Paso")
                             st.latex(r"T(n) = " + hard.get("cost_expression", ""))
                             st.write("Al aplicar límites cuando $n \\to \\infty$:")
-                            st.latex(r"O(" + hard.get("big_o", "") + ")")
+                            st.latex(hard.get("big_o", ""))
                             
                             if hard.get("is_recursive"):
                                 st.warning("🔄 Recursividad detectada")
