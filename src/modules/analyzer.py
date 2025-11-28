@@ -21,7 +21,7 @@ class ComplexityAnalyzer(ASTVisitor):
         worst_expr = self.visit(ast_node)
         results['worst_case'] = {
             'expr': str(simplify(worst_expr)).replace("**", "^"),
-            'notation': f"O({O(worst_expr, (self.n, oo))})".replace("**", "^")
+            'notation': f"{O(worst_expr, (self.n, oo))}".replace("**", "^")
         }
         
         # 2. Mejor Caso (Big Omega)
@@ -29,7 +29,7 @@ class ComplexityAnalyzer(ASTVisitor):
         best_expr = self.visit(ast_node)
         results['best_case'] = {
             'expr': str(simplify(best_expr)).replace("**", "^"),
-            'notation': f"Ω({O(best_expr, (self.n, oo))})".replace("O(", "Ω(").replace("**", "^") 
+            'notation': f"{O(best_expr, (self.n, oo))}".replace("O(", "Ω(").replace("**", "^") 
             # Nota: SymPy usa O() para el comportamiento asintótico, lo renombramos visualmente
         }
 
@@ -38,7 +38,7 @@ class ComplexityAnalyzer(ASTVisitor):
         avg_expr = self.visit(ast_node)
         results['average_case'] = {
             'expr': str(simplify(avg_expr)).replace("**", "^"),
-            'notation': f"Θ({O(avg_expr, (self.n, oo))})".replace("O(", "Θ(").replace("**", "^")
+            'notation': f"{O(avg_expr, (self.n, oo))}".replace("O(", "Θ(").replace("**", "^")
         }
 
         # Metadatos extra
