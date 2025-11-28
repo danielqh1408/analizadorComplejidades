@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Any
 
 # --- Interfaz del Visitante ---
@@ -15,14 +15,18 @@ class ASTVisitor:
 # --- Nodos Base ---
 @dataclass
 class ASTNode:
+    line: Optional[int] = field(default=None, init=False)
     def accept(self, visitor: ASTVisitor):
         return visitor.visit(self)
     
     def to_dict(self) -> dict:
-        """Serializa el nodo a un diccionario para enviarlo al frontend (JSON)."""
         node_type = type(self).__name__
         data = {"type": node_type}
+        if self.line is not None:
+            data["line"] = self.line
+            
         for key, value in self.__dict__.items():
+            if key == "line": continue
             if isinstance(value, ASTNode):
                 data[key] = value.to_dict()
             elif isinstance(value, list):
@@ -44,6 +48,10 @@ class VarNode(Expression):
 @dataclass
 class ConstNode(Expression):
     value: Any
+
+@dataclass
+class StringNode(Expression):
+    value: str
 
 @dataclass
 class BinOpNode(Expression):

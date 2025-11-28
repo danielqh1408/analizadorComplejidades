@@ -1,81 +1,97 @@
 import sympy
-from sympy import Symbol, Sum, simplify, O, oo, Integer
+from sympy import Symbol, Sum, simplify, O, oo, Integer, Max, Min, Rational
 from src.modules.ast_nodes import ASTVisitor
 
 class ComplexityAnalyzer(ASTVisitor):
     def __init__(self):
         # Definimos 'n' como entero positivo para ayudar a SymPy a simplificar Max(0, ...)
         self.n = Symbol('n', integer=True, positive=True)
-        self.current_function = None
+        self.current_mode = 'worst' # worst, best, average
+        self.line_costs = {}
         self.is_recursive = False
         self.recurrence_relation = None
 
     def analyze(self, ast_node):
-        self.is_recursive = False
-        self.recurrence_relation = None
+        """Ejecuta los tres análisis y devuelve el reporte completo."""
         
-        # Calculamos el COSTO (T(n))
-        cost_expr = self.visit(ast_node)
+        results = {}
         
-        # Simplificación agresiva
-        cost_expr = simplify(cost_expr)
-        
-        # --- Resolución de Recurrencias ---
-        if self.is_recursive and self.recurrence_relation:
-            try:
-                # Intentamos resolver T(n) = ... usando SymPy
-                n = self.n
-                y = sympy.Function('y')
-                
-                # SymPy espera f(n) - cuerpo = 0
-                # Extraemos el cuerpo de la ecuación que guardamos (muy simplificado)
-                # NOTA: Esto es complejo de automatizar perfectamente, pero intentamos
-                # un caso base común: T(n) = a*T(n/b) + f(n)
-                # Dejamos que SymPy intente inferir el Big-O de la expresión recursiva si es simple
-                # Si no, marcamos para que el LLM decida.
-                big_o = "Recursiva (Ver IA)" 
-            except:
-                big_o = "Compleja (Ver IA)"
-        else:
-            try:
-                big_o = O(cost_expr, (self.n, oo))
-            except:
-                big_o = "Indeterminado"
-
-        return {
-            "cost_expression": str(cost_expr).replace("**", "^"),
-            "big_o": str(big_o).replace("**", "^"),
-            "is_recursive": self.is_recursive,
-            "recurrence_equation": str(self.recurrence_relation) if self.is_recursive else None
+        # 1. Peor Caso (Big O)
+        self._reset('worst')
+        worst_expr = self.visit(ast_node)
+        results['worst_case'] = {
+            'expr': str(simplify(worst_expr)).replace("**", "^"),
+            'notation': f"O({O(worst_expr, (self.n, oo))})".replace("**", "^")
         }
+        
+        # 2. Mejor Caso (Big Omega)
+        self._reset('best')
+        best_expr = self.visit(ast_node)
+        results['best_case'] = {
+            'expr': str(simplify(best_expr)).replace("**", "^"),
+            'notation': f"Ω({O(best_expr, (self.n, oo))})".replace("O(", "Ω(").replace("**", "^") 
+            # Nota: SymPy usa O() para el comportamiento asintótico, lo renombramos visualmente
+        }
+
+        # 3. Caso Promedio (Big Theta)
+        self._reset('average')
+        avg_expr = self.visit(ast_node)
+        results['average_case'] = {
+            'expr': str(simplify(avg_expr)).replace("**", "^"),
+            'notation': f"Θ({O(avg_expr, (self.n, oo))})".replace("O(", "Θ(").replace("**", "^")
+        }
+
+        # Metadatos extra
+        results['line_costs'] = self.line_costs
+        results['is_recursive'] = self.is_recursive
+        results['recurrence'] = str(self.recurrence_relation) if self.is_recursive else None
+        
+        return results
+
+    def _reset(self, mode):
+        self.current_mode = mode
+        # No reseteamos line_costs aquí para acumular info, o podríamos hacerlo por modo
+        # Por simplicidad, guardaremos el desglose del Peor Caso (el más útil)
+        if mode == 'worst':
+            self.line_costs = {}
+            self.is_recursive = False
+            self.recurrence_relation = None
+
+    def _record_cost(self, node, cost):
+        """Guarda el costo asociado a la línea del nodo (si existe)"""
+        # Asumimos que el parser inyecta el atributo 'line' en los nodos
+        if hasattr(node, 'line') and node.line is not None:
+            cost_str = str(simplify(cost)).replace("**", "^")
+            self.line_costs[node.line] = cost_str
+        return cost
 
     # --- Extraer valor simbólico para límites de bucles ---
     def _get_symbolic_value(self, node):
-        """Devuelve el SÍMBOLO matemático (N) o el número (0, 1)"""
-        node_type = type(node).__name__
-        
-        if node_type == 'VarNode':
-            # Si la variable es N, M, Size, es nuestro símbolo de complejidad
-            if str(node.name).upper() in ['N', 'M', 'SIZE', 'LONGITUD', 'CANTIDAD']:
-                return self.n
-            # Si es una variable de control (i, j), la devolvemos como símbolo para la sumatoria
-            return Symbol(node.name, integer=True)
-        
-        if node_type == 'ConstNode':
-            return Integer(node.value)
-            
-        if node_type == 'BinOpNode':
-            left = self._get_symbolic_value(node.left)
-            right = self._get_symbolic_value(node.right)
-            if node.op == '+': return left + right
-            if node.op == '-': return left - right
-            if node.op == '*': return left * right
-            if node.op == '/': return left / right
+        try:
+            if type(node).__name__ == 'ConstNode': return Integer(node.value)
+            if type(node).__name__ == 'VarNode': 
+                 if str(node.name).upper() in ['N', 'M', 'SIZE', 'LONGITUD', 'CANTIDAD']:
+                     return self.n
+                 return Symbol(node.name, integer=True)
+            if type(node).__name__ == 'BinOpNode':
+                left = self._get_symbolic_value(node.left)
+                right = self._get_symbolic_value(node.right)
+                op_map = {'+': lambda x,y: x+y, '-': lambda x,y: x-y, '*': lambda x,y: x*y, '/': lambda x,y: x/y}
+                return op_map.get(node.op, lambda x,y: self.n)(left, right)
+            return self.n
+        except: return self.n
             
         # Si es algo complejo (vector[i]), asumimos que no afecta los límites o es N
         return self.n
 
     # --- Visitantes de COSTO (Retornan unidades de tiempo: 1, N, etc.) ---
+
+    def visit_list(self, nodes):
+        """Maneja la lista de funciones que devuelve el parser."""
+        total_cost = 0
+        for node in nodes:
+            total_cost += self.visit(node)
+        return total_cost
 
     def visit_FunctionNode(self, node):
         self.current_function = node.name
@@ -88,33 +104,45 @@ class ComplexityAnalyzer(ASTVisitor):
         return total_cost
 
     def visit_ForLoopNode(self, node):
-        # 1. Obtener límites SIMBÓLICOS (no costo)
-        start_val = self._get_symbolic_value(node.start)
-        end_val = self._get_symbolic_value(node.end)
+        # Límites simbólicos
+        start = self._get_symbolic_value(node.start)
+        end = self._get_symbolic_value(node.end)
         
-        # 2. Calcular costo del cuerpo
         body_cost = self.visit(node.body)
-        
-        # 3. Sumatoria
         iter_var = Symbol(node.variable.name, integer=True)
         
-        # Costo del bucle: Suma(Cuerpo) + Costo de evaluar límites y saltos
-        # Simplificación: Suma(Cuerpo, start, end)
-        summation = Sum(body_cost, (iter_var, start_val, end_val))
-        
-        return summation.doit()
+        # El For es determinista en iteraciones, igual para todos los casos
+        total = Sum(body_cost, (iter_var, start, end)).doit()
+        return self._record_cost(node, total)
 
     def visit_WhileLoopNode(self, node):
-        # Estimación de peor caso para While: O(N) * cuerpo
         body_cost = self.visit(node.body)
-        return self.n * body_cost
+        cond_cost = self.visit(node.condition)
+        
+        if self.current_mode == 'worst':
+            total = self.n * (body_cost + cond_cost)
+        elif self.current_mode == 'best':
+            total = cond_cost
+        else: # average
+            total = (self.n / 2) * (body_cost + cond_cost)
+            
+        return self._record_cost(node, total)
 
     def visit_IfNode(self, node):
         cond_cost = self.visit(node.condition)
         then_cost = self.visit(node.then_branch)
         else_cost = self.visit(node.else_branch) if node.else_branch else 0
-        # Peor caso: la rama más cara
-        return cond_cost + sympy.Max(then_cost, else_cost)
+        
+        if self.current_mode == 'worst':
+            branch_cost = Max(then_cost, else_cost)
+        elif self.current_mode == 'best':
+            branch_cost = Min(then_cost, else_cost)
+        else: # average
+            prob = Rational(1, 2) 
+            branch_cost = (prob * then_cost) + (prob * else_cost)
+            
+        total = cond_cost + branch_cost
+        return self._record_cost(node, total)
 
     def visit_CallNode(self, node):
         if self.current_function and node.func_name == self.current_function:
@@ -129,7 +157,8 @@ class ComplexityAnalyzer(ASTVisitor):
     # --- Operaciones Básicas ---
     
     def visit_AssignNode(self, node):
-        return 1 + self.visit(node.value) # Costo asignación + costo evaluar expr
+        cost = 1 + self.visit(node.value)
+        return self._record_cost(node, cost)
 
     def visit_BinOpNode(self, node):
         return 1 # a + b cuesta 1 ciclo

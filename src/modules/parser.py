@@ -109,16 +109,34 @@ class AstTransformer(Transformer):
     def __init__(self):
         self.str = str
         self.int = int
+
+    def _add_line(self, node, token):
+        if hasattr(token, 'line'):
+            node.line = token.line
+        return node
     
     def start_node(self, *functions): return list(functions)
-    def var_node(self, name): return VarNode(name=str(name))
-    def const_node(self, value): return ConstNode(value=int(value))
-    def string_node(self, value): return ConstNode(value=str(value)[1:-1])
-    def array_access_node(self, name, *indices): return VarNode(name=f"{name}_multidim") 
-    def unary_op(self, op, operand): return UnaryOpNode(op=str(op), operand=operand)
+    
+    def var_node(self, name):
+        node = VarNode(name=str(name))
+        return self._add_line(node, name)
+
+    def const_node(self, value):
+        return self._add_line(ConstNode(value=int(value)), value)
+        
+    def string_node(self, value):
+        return self._add_line(ConstNode(value=str(value)[1:-1]), value)
+        
+    def array_access_node(self, name, *indices):
+        return self._add_line(VarNode(name=f"{name}_multidim"), name)
+
+    def unary_op(self, op, operand):
+        return self._add_line(UnaryOpNode(op=str(op), operand=operand), op)
 
     def declaration_node(self, *items):
-        return SequenceNode(statements=[ConstNode(value=1) for _ in items])
+        seq = SequenceNode(statements=[ConstNode(value=1) for _ in items])
+        if items and hasattr(items[0], 'line'): seq.line = items[0].line
+        return seq
 
     def bin_op(self, *args):
         if len(args) == 1: return args[0]
@@ -128,12 +146,15 @@ class AstTransformer(Transformer):
             op = args[i]
             right = args[i + 1]
             left = BinOpNode(left=left, op=str(op), right=right)
+            if hasattr(op, 'line'): left.line = op.line
+            elif hasattr(left, 'line'): pass
             i += 2
         return left
 
     def assign_node(self, target, assign_op, value):
         target_node = target if isinstance(target, VarNode) else VarNode(name=str(target))
-        return AssignNode(target=target_node, value=value)
+        node = AssignNode(target=target_node, value=value)
+        return self._add_line(node, assign_op)
     
     def sequence_node(self, *statements):
         flat = []
@@ -145,25 +166,32 @@ class AstTransformer(Transformer):
 
     def for_loop_node(self, var_id, assign_op, start, end, body):
         if not isinstance(body, SequenceNode): body = SequenceNode([body])
-        return ForLoopNode(variable=VarNode(str(var_id)), start=start, end=end, body=body)
-    
+        node = ForLoopNode(variable=VarNode(str(var_id)), start=start, end=end, body=body)
+        return self._add_line(node, var_id)
+
     def while_loop_node(self, cond, body):
         if not isinstance(body, SequenceNode): body = SequenceNode([body])
-        return WhileLoopNode(condition=cond, body=body)
+        node = WhileLoopNode(condition=cond, body=body)
+        if hasattr(cond, 'line'): node.line = cond.line
+        return node
     
     def if_node(self, cond, then_b, else_b=None):
         if not isinstance(then_b, SequenceNode): then_b = SequenceNode([then_b])
         if else_b and not isinstance(else_b, SequenceNode): else_b = SequenceNode([else_b])
-        return IfNode(condition=cond, then_branch=then_b, else_branch=else_b)
-    
+        node = IfNode(condition=cond, then_branch=then_b, else_branch=else_b)
+        if hasattr(cond, 'line'): node.line = cond.line
+        return node
+
     def call_node(self, name, args=None):
         safe_args = args if args else []
         if hasattr(safe_args, 'children'): safe_args = safe_args.children
-        return CallNode(func_name=str(name), args=list(safe_args) if isinstance(safe_args, tuple) else safe_args)
+        node = CallNode(func_name=str(name), args=list(safe_args) if isinstance(safe_args, tuple) else safe_args)
+        return self._add_line(node, name)
         
     def function_node(self, name, params, body):
         safe_params = params if params else []
-        return FunctionNode(name=str(name), params=list(safe_params), body=body)
+        node = FunctionNode(name=str(name), params=list(safe_params), body=body)
+        return self._add_line(node, name)
 
     def param_node(self, *args):
         valid_args = [arg for arg in args if arg is not None]

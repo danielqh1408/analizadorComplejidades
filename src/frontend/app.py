@@ -1,8 +1,9 @@
 import streamlit as st
 import requests
 import graphviz
+import pandas as pd
 
-st.set_page_config(page_title="Analizador de Algoritmos", layout="wide", page_icon="🧬")
+st.set_page_config(page_title="Analizador de Algoritmos", layout="wide", page_icon="🧬", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
@@ -33,6 +34,15 @@ st.markdown("""
         border-color: #aaa !important;
     }
 
+    .big-font { font-size: 20px !important; font-weight: bold; }
+    .stAlert { margin-top: 1rem; }
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 5px solid #4f46e5;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +61,7 @@ def build_graphviz(node, dot=None, parent_id=None):
     node_id = str(id(node))
     
     # Etiqueta del nodo
-    label = node['type']
+    label = node.get('type', 'Node').replace('Node', '')
     if 'name' in node: label += f"\n({node['name']})"
     elif 'op' in node: label += f"\nOP: {node['op']}"
     elif 'value' in node: label += f"\nVAL: {node['value']}"
@@ -78,7 +88,7 @@ def build_graphviz(node, dot=None, parent_id=None):
     return dot
 
 # --- UI Principal ---
-col_input, col_results = st.columns([4, 6])
+col_input, col_results = st.columns([5, 6])
 
 with col_input:
     st.subheader("📝 Entrada del Algoritmo")
@@ -90,6 +100,16 @@ with col_input:
     
     analyze_btn = st.button("🚀 Analizar Complejidad", type="primary", use_container_width=True)
 
+    with st.expander("ℹ️ Ayuda de Sintaxis"):
+        st.markdown("""
+        **Estructuras soportadas:**
+        - `FOR i <- 0 TO N DO ...`
+        - `WHILE (x < N) DO ...`
+        - `IF (cond) THEN ... ELSE ...`
+        - Asignación: `x <- 5`
+        - Arrays: `A[i] <- val`
+        """)
+
 if analyze_btn and code_input:
     with col_results:
         with st.spinner("⚙️ Procesando: Normalización -> Parsing -> Matemáticas -> IA..."):
@@ -98,9 +118,18 @@ if analyze_btn and code_input:
                 
                 if res.status_code == 200:
                     data = res.json()
+
+                    # Extraer secciones de la respuesta
+                    status = data.get("status")
+                    mode = data.get("mode", "online")
                     hard = data.get("hard_analysis", {})
                     soft = data.get("soft_analysis", {})
+                    pattern = data.get("pattern_analysis", {})
+                    warnings = data.get("warnings", [])
                     ast_data = data.get("ast_debug")
+
+                    input_analysis = data.get("input_analysis", {})
+                    final_code = input_analysis.get("final_code", "")
                     
                     # --- CÁLCULO DE "QUIÉN HIZO QUÉ" ---
                     if "error_details" in hard or hard.get("big_o") == "Indeterminado":
@@ -114,54 +143,152 @@ if analyze_btn and code_input:
                         status_color = "green"
                         status_msg = "Análisis Matemático Exacto"
 
-                    # --- VISUALIZACIÓN DE LA CARGA DE TRABAJO ---
-                    st.subheader("Desglose de Análisis")
-                    st.progress(deter_pct / 100, text=f"Motor Determinista: {deter_pct}% | Consultor IA: {ai_pct}%")
-                    if deter_pct > 50:
-                        st.success("Cálculo matemático exitoso. La IA solo validó.")
-                    else:
-                        st.warning("Limitación estructural detectada. La IA estimó la complejidad.")
-
-                    # --- TABS DE RESULTADOS ---
-                    tab1, tab2, tab3, tab4 = st.tabs(["Informe", "Matemáticas", "Estructura (AST)", "Código"])
+                    # --- 1. Estado del Sistema (Online/Offline) ---
+                    if mode == "offline":
+                        st.warning("⚠️ MODO OFFLINE ACTIVO: Sin acceso a IA. Se muestran solo resultados deterministas y patrones locales.")
                     
-                    with tab1:
-                        st.markdown(f"### Estrategia: {soft.get('strategy', 'Desconocida')}")
-                        st.info(soft.get("explanation"))
-                        st.write(f"**Método de Análisis Teórico:** {soft.get('method_used', '-')}")
-                        
-                        c1, c2 = st.columns(2)
-                        c1.metric("Complejidad Asintótica", hard.get("big_o", soft.get("complexity_validation", "?")))
-                        c2.metric("Patrón", soft.get("pattern_identified", "-"))
+                    if warnings:
+                        with st.expander("Avisos del Sistema", expanded=False):
+                            for w in warnings: st.write(f"- {w}")
 
-                    with tab2:
-                        if "error_details" in hard:
-                            st.error("El motor matemático encontró un obstáculo:")
-                            st.code(hard['error_details'])
-                        else:
-                            st.write("### Derivación Paso a Paso")
-                            st.latex(r"T(n) = " + hard.get("cost_expression", ""))
-                            st.write("Al aplicar límites cuando $n \\to \\infty$:")
-                            st.latex(hard.get("big_o", ""))
+                    # --- 2. Resultados Principales ---
+                    if data.get("status") == "error":
+                        st.error(data.get("error"))
+                    else:
+                        # Pestañas
+                        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📘 Informe", "🧮 Matemáticas Profundas", "📊 Costos por Línea", "🌳 Árbol Sintáctico", "📝 Código Final"])
+                        
+                        # === PESTAÑA 1: INFORME ===
+                        with tab1:
+                            # Identificación del Algoritmo
+                            st.markdown("### 🔍 Identificación")
                             
-                            if hard.get("is_recursive"):
-                                st.warning("🔄 Recursividad detectada")
-                                st.code(hard.get("recurrence_equation"))
+                            # Prioridad: Patrón Local > IA > Desconocido
+                            algo_name = "Algoritmo Personalizado"
+                            strategy = "Análisis Genérico"
+                            source = "Motor Matemático"
+                            
+                            if pattern.get("pattern_found"):
+                                algo_name = pattern["name"]
+                                strategy = pattern["strategy"]
+                                source = "⚡ Base de Datos Local (Rápido)"
+                                st.success(f"**Algoritmo Reconocido:** {algo_name}")
+                            elif mode == "online" and soft.get("pattern_identified"):
+                                algo_name = soft["pattern_identified"]
+                                strategy = soft.get("strategy", "Desconocida")
+                                source = "🧠 Análisis Semántico (IA)"
+                                st.info(f"**Algoritmo Identificado por IA:** {algo_name}")
+                            
+                            st.caption(f"Fuente del análisis: {source}")
+                            
+                            # Métricas Principales
+                            col_a, col_b = st.columns(2)
+                            col_a.metric("Estrategia", strategy)
+                            
+                            # Complejidad (Prioridad: Determinista > Patrón > IA)
+                            final_complexity = hard.get("worst_case", {}).get("notation", "N/A")
+                            if final_complexity == "N/A" or "Indeterminado" in final_complexity:
+                                final_complexity = pattern.get("expected_complexity", soft.get("complexity_validation", "Indeterminado"))
+                                
+                            col_b.metric("Complejidad (Peor Caso)", final_complexity)
 
-                    with tab3:
-                        if ast_data:
-                            st.write("Visualización gráfica del algoritmo parseado:")
-                            # Renderizamos el primer nodo función
-                            graph = build_graphviz(ast_data[0])
-                            st.graphviz_chart(graph)
-                        else:
-                            st.warning("No hay AST disponible.")
+                            # Explicación (Solo si hay IA o Patrón)
+                            st.markdown("#### 💡 Explicación")
+                            if mode == "online":
+                                st.write(soft.get("explanation", "Sin explicación disponible."))
+                            else:
+                                st.write("En modo offline, la explicación detallada no está disponible. Se basa en el cálculo matemático puro.")
 
-                    with tab4:
-                        st.code(data['input_analysis']['normalized_pascal'], language="pascal")
-                        
-                else:
-                    st.error(f"Error {res.status_code}: {res.text}")
-            
+                        # === PESTAÑA 2: MATEMÁTICAS ===
+                        with tab2:
+                            st.markdown("### 📐 Análisis Asintótico Completo")
+                            
+                            if "error" in hard:
+                                st.error(f"Error en cálculo matemático: {hard['error']}")
+                            else:
+                                # Tarjetas para O, Omega, Theta
+                                c1, c2, c3 = st.columns(3)
+                                
+                                with c1:
+                                    st.markdown("#### Peor Caso ($O$)")
+                                    st.latex(hard.get('worst_case', {}).get('notation', ''))
+                                    with st.expander("Ver ecuación exacta"):
+                                        st.code(hard.get('worst_case', {}).get('expr', ''))
+                                
+                                with c2:
+                                    st.markdown("#### Mejor Caso ($\Omega$)")
+                                    st.latex(hard.get('best_case', {}).get('notation', ''))
+                                    with st.expander("Ver ecuación exacta"):
+                                        st.code(hard.get('best_case', {}).get('expr', ''))
+
+                                with c3:
+                                    st.markdown("#### Caso Promedio ($\Theta$)")
+                                    st.latex(hard.get('average_case', {}).get('notation', ''))
+                                    with st.expander("Ver ecuación exacta"):
+                                        st.code(hard.get('average_case', {}).get('expr', ''))
+
+                                st.markdown("---")
+                                if hard.get("is_recursive"):
+                                    st.warning("🔄 **Algoritmo Recursivo Detectado**")
+                                    st.write(f"Ecuación de Recurrencia Base: `{hard.get('recurrence')}`")
+                                else:
+                                    st.success("Algoritmo Iterativo (Sin recursión)")
+
+                        # === PESTAÑA 3: COSTOS POR LÍNEA ===
+                        with tab3:
+                            line_costs = hard.get("line_costs", {})
+                            if line_costs and final_code:
+                                code_lines = final_code.split('\n')
+                                table_data = []
+                                
+                                for i, line_content in enumerate(code_lines):
+                                    line_num = str(i + 1)
+                                    cost = line_costs.get(line_num, "")
+                                    
+                                    # Lógica de visualización de costo
+                                    cost_display = ""
+                                    if cost == "2": cost_display = "C" # Constante
+                                    elif cost: cost_display = cost     # Fórmula
+                                    
+                                    # Filtrar líneas vacías o estructurales sin costo
+                                    if line_content.strip() and cost_display:
+                                        table_data.append({
+                                            "Línea": i + 1,
+                                            "Código": line_content,
+                                            "Costo": cost_display
+                                        })
+                                
+                                if table_data:
+                                    df = pd.DataFrame(table_data)
+                                    st.dataframe(
+                                        df, 
+                                        hide_index=True, 
+                                        use_container_width=True,
+                                        column_config={
+                                            "Línea": st.column_config.NumberColumn(format="%d"),
+                                            "Código": st.column_config.TextColumn(width="medium"),
+                                            "Costo": st.column_config.TextColumn(width="small")
+                                        }
+                                    )
+                                else:
+                                    st.info("No hay costos significativos para mostrar.")
+                            else:
+                                st.info("Desglose no disponible.")
+
+                            # === PESTAÑA 4: ÁRBOL GRÁFICO ===
+                        with tab4:
+                            if ast_data:
+                                st.success("Árbol Sintáctico Generado")
+                                # ast_data es una lista, graficamos el primer nodo (Function)
+                                graph = build_graphviz(ast_data[0])
+                                st.graphviz_chart(graph)
+                            else:
+                                st.warning("No se generó el AST visual.")
+
+                        # === PESTAÑA 5: CÓDIGO ===
+                        with tab5:
+                            st.markdown("### Código Normalizado (Pascal)")
+                            st.code(data['input_analysis']['final_code'], language="pascal")
+
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f"Error crítico de conexión o procesamiento: {e}")
