@@ -1,10 +1,14 @@
+#Aqui encontramos el frontend, la parte visual de nuestro algoritmo y todos los llamados
+#al backend para que el programa haga las funciones correspondientes
+
 import streamlit as st
 import requests
 import graphviz
 import pandas as pd
 
 st.set_page_config(page_title="Analizador de Algoritmos", layout="wide", page_icon="🧬", initial_sidebar_state="collapsed")
-
+#El markdown es donde se define el estilo de la pagina, algunos colores y/o tamaños
+#para botones o textos
 st.markdown("""
 <style>
 
@@ -50,6 +54,9 @@ st.markdown("""
 st.title("🧬 Analizador de Complejidad Algorítmica")
 st.markdown("---")
 
+#Esta función se hace para que el JSON que se genera del AST
+#Lo podamos utilizar para graficar mediante la libreria de Graphviz 
+#y podamos visualizar el arbol que se gerera del algoritmo
 def build_graphviz(node, dot=None, parent_id=None):
     """Convierte el JSON del AST en un objeto Graphviz recursivamente"""
     if dot is None:
@@ -87,7 +94,7 @@ def build_graphviz(node, dot=None, parent_id=None):
                     
     return dot
 
-# --- UI Principal ---
+# Interfaz Principal 
 col_input, col_results = st.columns([5, 6])
 
 with col_input:
@@ -110,6 +117,8 @@ with col_input:
         - Arrays: `A[i] <- val`
         """)
 
+#Aqui se hace el request de cuando ya se envia la petición del analisis
+#Y toda la funcionalidad que hace
 if analyze_btn and code_input:
     with col_results:
         with st.spinner("⚙️ Procesando: Normalización -> Parsing -> Matemáticas -> IA..."):
@@ -131,7 +140,7 @@ if analyze_btn and code_input:
                     input_analysis = data.get("input_analysis", {})
                     final_code = input_analysis.get("final_code", "")
                     
-                    # --- CÁLCULO DE "QUIÉN HIZO QUÉ" ---
+                    #CÁLCULO DE "QUIÉN HIZO QUÉ"
                     if "error_details" in hard or hard.get("big_o") == "Indeterminado":
                         deter_pct = 15
                         ai_pct = 85
@@ -143,7 +152,7 @@ if analyze_btn and code_input:
                         status_color = "green"
                         status_msg = "Análisis Matemático Exacto"
 
-                    # --- 1. Estado del Sistema (Online/Offline) ---
+                    #1. Estado del Sistema (Online/Offline)
                     if mode == "offline":
                         st.warning("⚠️ MODO OFFLINE ACTIVO: Sin acceso a IA. Se muestran solo resultados deterministas y patrones locales.")
                     
@@ -151,14 +160,14 @@ if analyze_btn and code_input:
                         with st.expander("Avisos del Sistema", expanded=False):
                             for w in warnings: st.write(f"- {w}")
 
-                    # --- 2. Resultados Principales ---
+                    #2. Resultados Principales
                     if data.get("status") == "error":
                         st.error(data.get("error"))
                     else:
                         # Pestañas
                         tab1, tab2, tab3, tab4, tab5 = st.tabs(["📘 Informe", "🧮 Matemáticas Profundas", "📊 Costos por Línea", "🌳 Árbol Sintáctico", "📝 Código Final"])
                         
-                        # === PESTAÑA 1: INFORME ===
+                        #PESTAÑA 1: INFORME 
                         with tab1:
                             # Identificación del Algoritmo
                             st.markdown("### 🔍 Identificación")
@@ -199,7 +208,7 @@ if analyze_btn and code_input:
                             else:
                                 st.write("En modo offline, la explicación detallada no está disponible. Se basa en el cálculo matemático puro.")
 
-                        # === PESTAÑA 2: MATEMÁTICAS ===
+                        #PESTAÑA 2: MATEMÁTICAS 
                         with tab2:
                             st.markdown("### 📐 Análisis Asintótico Completo")
                             
@@ -234,7 +243,7 @@ if analyze_btn and code_input:
                                 else:
                                     st.success("Algoritmo Iterativo (Sin recursión)")
 
-                        # === PESTAÑA 3: COSTOS POR LÍNEA ===
+                        #PESTAÑA 3: COSTOS POR LÍNEA
                         with tab3:
                             line_costs = hard.get("line_costs", {})
                             if line_costs and final_code:
@@ -275,7 +284,7 @@ if analyze_btn and code_input:
                             else:
                                 st.info("Desglose no disponible.")
 
-                            # === PESTAÑA 4: ÁRBOL GRÁFICO ===
+                            #PESTAÑA 4: ÁRBOL GRÁFICO
                         with tab4:
                             if ast_data:
                                 st.success("Árbol Sintáctico Generado")
@@ -285,7 +294,7 @@ if analyze_btn and code_input:
                             else:
                                 st.warning("No se generó el AST visual.")
 
-                        # === PESTAÑA 5: CÓDIGO ===
+                        #PESTAÑA 5: CÓDIGO
                         with tab5:
                             st.markdown("### Código Normalizado (Pascal)")
                             st.code(data['input_analysis']['final_code'], language="pascal")

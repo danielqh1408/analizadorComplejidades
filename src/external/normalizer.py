@@ -1,3 +1,6 @@
+#Aqui se realiza el llamado a la APP de Gemini, como funciona todo
+#alrededor de esto, el prompt usado para ayudarnos a resolver los algoritmos
+
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -11,16 +14,16 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+#Aqui se usa la key que proporciona Gemini, para usar el Servicio LLM
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     logger.error("GEMINI_API_KEY no encontrada en el archivo .env")
 else:
     genai.configure(api_key=api_key)
 
+#Intenta llamar a la API hasta 3 veces con espera exponencial si falla por cuota.    
 def retry_api_call(func, *args, **kwargs):
-    """
-    Intenta llamar a la API hasta 3 veces con espera exponencial si falla por cuota.
-    """
+    
     max_retries = 3
     base_delay = 2  # Segundos
 
@@ -44,16 +47,15 @@ def retry_api_call(func, *args, **kwargs):
                 raise e
 
 def normalize_code(user_input: str) -> str:
-    """
-    Toma código sucio/natural y lo convierte en Pascal estricto para Lark.
-    """
+
+    #Toma código que no es como de la estructura o natural y lo convierte en Pascal estricto para Lark.    
     if not api_key:
         return "Error: API Key no configurada."
 
     model = genai.GenerativeModel('gemini-2.5-flash') 
     
-    # GRAMÁTICA EXACTA DE TU PARSER (Simplificada para el prompt)
-    # Esta gramática coincide con lo que definimos para Lark
+    # Usamos la Gramatica que usa el parser para que lo tenga en cuenta,
+    #para el uso de prompts
     grammar_rules = """
     TU OBJETIVO: Convertir la entrada en código PASCAL SIMPLIFICADO que cumpla ESTRICTAMENTE estas reglas.
     
@@ -117,6 +119,8 @@ def normalize_code(user_input: str) -> str:
         logger.error(f"Error normalizando código con Gemini: {e}")
         return f"// Error en normalización: {str(e)}"
 
+#Este metodo sirve para darle la instruccion a la ia que funcione como 
+#consultor experto de algoritmos y actue como tal mediante un prompt
 def explain_strategy(clean_code: str, math_result: dict) -> dict:
     """
     Paso 4: El LLM actúa como consultor senior para clasificar la estrategia
@@ -179,13 +183,13 @@ def explain_strategy(clean_code: str, math_result: dict) -> dict:
         """
         
         response = retry_api_call(model.generate_content, prompt)
-        # Limpieza agresiva para asegurar JSON válido
+        # Limpieza para asegurar JSON válido
         text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
         
     except Exception as e:
         logger.error(f"Error en explicación de estrategia: {e}")
-        # Fallback para que el front no rompa
+        # Fallback para que el front no se caiga o dañe
         return {
             "strategy": "Desconocida", 
             "explanation": f"Error procesando respuesta IA: {str(e)}",
