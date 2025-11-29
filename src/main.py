@@ -10,18 +10,23 @@ import os
 from dotenv import load_dotenv
 import socket
 
+#Este archivo crea una API con FastAPI que recibe código, lo normaliza, lo analiza matemáticamente y lo interpreta con IA.
+#Es el centro de control del proyecto y nos da lugar a que se puede realizar todos los demas procesos
+#De analisis de nuestro codigo.
+
 # Carga .env y configura log básico
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Orchestrator")
 
+#se crea la app
 app = FastAPI(title="Analizador de Complejidad Híbrido")
 
 class CodeRequest(BaseModel):
     code: str
 
 def check_internet():
-    """Verifica si hay conexión para llamar al LLM"""
+    #Verifica si hay conexión para llamar al LLM
     try:
         # Intenta conectar al DNS de Google
         socket.create_connection(("8.8.8.8", 53), timeout=2)
@@ -29,6 +34,10 @@ def check_internet():
     except OSError:
         return False
 
+#Aqui es donde se realiza todo el analisis completo de nuestro proyecto
+#Verifica si hay conexion, hace el proceso de normalizacion de la entrada de texto
+#realiza el parsing y usa la IA para hacer las comprobaciones o ayudas necesarias para nuestro
+#motor determinista
 @app.post("/analyze")
 async def analyze_algorithm(request: CodeRequest):
     response_data = {

@@ -1,10 +1,16 @@
+#Aqui se contruye y como se constituye el arbol mediante los nodos
+#Esto proporcionado por el JSON del AST, el entiende el codigo y crea los nodos para el arbol
+
 from dataclasses import dataclass, field
 from typing import List, Optional, Any
 
-# --- Interfaz del Visitante ---
+#Interfaz del Visitante
+
+# Esta clase sirve para recorrer todo el programa paso a paso.
+# Identifica qué tipo de instrucción es cada parte y la procesa correctamente.
 class ASTVisitor:
     def visit(self, node: 'ASTNode'):
-        """Despacha la llamada al método visit_NombreClase correspondiente."""
+        #Despacha la llamada al método visit_NombreClase correspondiente.
         method_name = f'visit_{type(node).__name__}'
         visitor_method = getattr(self, method_name, self.generic_visit)
         return visitor_method(node)
@@ -12,7 +18,10 @@ class ASTVisitor:
     def generic_visit(self, node: 'ASTNode'):
         raise NotImplementedError(f"No visit_{type(node).__name__} method defined")
 
-# --- Nodos Base ---
+#Nodos Base
+
+# Esta es la clase base de todos los nodos del árbol del programa
+# Representa cualquier elemento del código (variables, condiciones, bucles, etc.).
 @dataclass
 class ASTNode:
     line: Optional[int] = field(default=None, init=False)
@@ -40,7 +49,10 @@ class Expression(ASTNode): pass
 @dataclass
 class Statement(ASTNode): pass
 
-# --- Nodos de Expresión ---
+# Nodos de Expresión
+
+#Maneja todo los tipos de expresiones
+#Como variables, constantes, strings, etc. 
 @dataclass
 class VarNode(Expression):
     name: str
@@ -64,16 +76,20 @@ class UnaryOpNode(Expression):
     op: str
     operand: Expression
 
-# --- Nodos de Sentencias ---
+#Nodos de Sentencias
+
+#Representa los bloques de instrucciones
 @dataclass
 class SequenceNode(Statement):
     statements: List[Statement]
 
+#Representa las asignaciones
 @dataclass
 class AssignNode(Statement):
     target: VarNode
     value: Expression
 
+#Estos tres representan los bucles y el condicional if 
 @dataclass
 class ForLoopNode(Statement):
     variable: VarNode
@@ -92,11 +108,13 @@ class IfNode(Statement):
     then_branch: SequenceNode
     else_branch: Optional[SequenceNode]
 
+#Representa el llamado a una función
 @dataclass
 class CallNode(Statement):
     func_name: str
     args: List[Expression]
 
+#Representa una funcion completa
 @dataclass
 class FunctionNode(ASTNode):
     name: str

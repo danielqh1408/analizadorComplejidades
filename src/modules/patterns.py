@@ -1,12 +1,10 @@
 class LocalPatternMatcher:
-    """
-    Base de datos local de algoritmos conocidos.
-    Funciona mediante detección de firmas (keywords) en el código normalizado.
-    Cubre los clásicos de Cormen y Manual de Algorítmica.
-    """
+    #Base de datos local de algoritmos conocidos.
+    #Funciona mediante detección de firmas (keywords) en el código normalizado.
+    #Cubre los clásicos de Cormen y Manual de Algorítmica.
     
     KNOWN_ALGORITHMS = {
-        # --- ORDENACIÓN (SORTING) ---
+        #Algoritmos de Ordenamiento
         "bubble_sort": {
             "name": "Bubble Sort (Ordenamiento Burbuja)",
             "strategy": "Fuerza Bruta / Iterativo",
@@ -38,7 +36,7 @@ class LocalPatternMatcher:
             "keywords": ["pivot", "partition", "low", "high", "call", "swap"] # Basado en Algoritmo 3.10
         },
 
-        # --- BÚSQUEDA (SEARCH) ---
+        #Algoritmos de busqueda
         "linear_search": {
             "name": "Búsqueda Lineal",
             "strategy": "Fuerza Bruta",
@@ -52,7 +50,7 @@ class LocalPatternMatcher:
             "keywords": ["while", "mid", "/", "2", "<", ">", "low", "high"] # Basado en Algoritmo 3.3
         },
 
-        # --- GRAFOS (GRAPHS) ---
+        #Algoritmos tipo Grafos
         "dijkstra": {
             "name": "Algoritmo de Dijkstra",
             "strategy": "Voraz (Greedy)",
@@ -78,7 +76,7 @@ class LocalPatternMatcher:
             "keywords": ["mst", "key", "min", "adjacency", "visited"]
         },
 
-        # --- MATEMÁTICAS Y RECURSIÓN ---
+        #Algoritmos matematicas y de recursión
         "factorial_recursive": {
             "name": "Factorial (Recursivo)",
             "strategy": "Recursión Simple",
@@ -110,7 +108,7 @@ class LocalPatternMatcher:
             "keywords": ["hanoi", "disk", "source", "dest", "aux", "n-1"] # Basado en Algoritmo 2.4
         },
 
-        # --- DINÁMICA Y NP ---
+        # Algoritmos de Dinamica y NP 
         "knapsack_dp": {
             "name": "Mochila (Knapsack 0/1)",
             "strategy": "Programación Dinámica",
@@ -133,9 +131,10 @@ class LocalPatternMatcher:
 
     @staticmethod
     def identify(clean_code: str):
-        """
-        Identifica el algoritmo basándose en una puntuación de coincidencia de keywords.
-        """
+
+        #Identifica el algoritmo basándose en una puntuación de coincidencia de keywords
+        #Asi se determina que algoritmo es y cual se le pone de la base que conoce y tiene el motor.
+     
         clean_code = clean_code.lower()
         
         best_match = None

@@ -2,6 +2,12 @@ import sympy
 from sympy import Symbol, Sum, simplify, O, oo, Integer, Max, Min, Rational
 from src.modules.ast_nodes import ASTVisitor
 
+
+#Aqui tenemos el analyzer que lo que busca es determinar la complejidad de nuestro
+#Algoritmo, aqui se hace el proceso para obtener el mejor,peor y caso promedio del algoritmo
+#darnos los costos que cuesta cada linea del codigo proporcionado
+
+#Usa el AST que proporciona el uso del Parser.
 class ComplexityAnalyzer(ASTVisitor):
     def __init__(self):
         # Definimos 'n' como entero positivo para ayudar a SymPy a simplificar Max(0, ...)
@@ -12,7 +18,7 @@ class ComplexityAnalyzer(ASTVisitor):
         self.recurrence_relation = None
 
     def analyze(self, ast_node):
-        """Ejecuta los tres análisis y devuelve el reporte completo."""
+        #Ejecuta los tres análisis y devuelve el reporte completo.
         
         results = {}
         
@@ -58,14 +64,14 @@ class ComplexityAnalyzer(ASTVisitor):
             self.recurrence_relation = None
 
     def _record_cost(self, node, cost):
-        """Guarda el costo asociado a la línea del nodo (si existe)"""
+        #Guarda el costo asociado a la línea del nodo (si existe)
         # Asumimos que el parser inyecta el atributo 'line' en los nodos
         if hasattr(node, 'line') and node.line is not None:
             cost_str = str(simplify(cost)).replace("**", "^")
             self.line_costs[node.line] = cost_str
         return cost
 
-    # --- Extraer valor simbólico para límites de bucles ---
+    #Extraer valor simbólico para límites de bucles
     def _get_symbolic_value(self, node):
         try:
             if type(node).__name__ == 'ConstNode': return Integer(node.value)
@@ -84,7 +90,7 @@ class ComplexityAnalyzer(ASTVisitor):
         # Si es algo complejo (vector[i]), asumimos que no afecta los límites o es N
         return self.n
 
-    # --- Visitantes de COSTO (Retornan unidades de tiempo: 1, N, etc.) ---
+    #Visitantes del costo, estas brindan el costo en variables como 1,N,ec
 
     def visit_list(self, nodes):
         """Maneja la lista de funciones que devuelve el parser."""
@@ -154,7 +160,7 @@ class ComplexityAnalyzer(ASTVisitor):
             return T(arg_val)
         return 1 # Llamada externa cuesta 1
 
-    # --- Operaciones Básicas ---
+    #Operaciones Básicas
     
     def visit_AssignNode(self, node):
         cost = 1 + self.visit(node.value)

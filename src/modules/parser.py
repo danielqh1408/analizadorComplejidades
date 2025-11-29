@@ -1,7 +1,12 @@
 from lark import Lark, Transformer, v_args
 from src.modules.ast_nodes import *
 
-# --- Gramática de Lark (Versión Final: Flexible y Robusta) ---
+#En este parser lo que hace este elemento del proyecto es
+#convertir el pseudocodigo a un estilo que nuestro motor pueda entender
+#se realiza mediante una gramatica ya establecida
+
+# Gramática de Lark: Es que va establecer bien el codigo recibido para
+#darlo en esta estructura que es el que entiende nuestro motor
 PSEUDOCODE_GRAMMAR = r"""
     ?start: function+ -> start_node
 
@@ -104,6 +109,12 @@ PSEUDOCODE_GRAMMAR = r"""
     %ignore COMMENT
 """
 
+#Esta Funcion que en realidad es una clase, lo que hace hace es utilizar esta gramatica implementada
+#con el fin de guardar esta informacion en los nodos y nos permita representar el arbol
+#de acuerdo al codigo que se esta analizando
+
+#La funcion contiene todo tipo de operaciones que puede entregar el algoritmo,
+#esto logra que todo se tenga en cuenta y se convierta en nodos
 @v_args(inline=True)
 class AstTransformer(Transformer):
     def __init__(self):
@@ -201,6 +212,8 @@ class AstTransformer(Transformer):
     def param_list(self, *params): return list(params)
     def arg_list(self, *args): return list(args)
 
+#Aqui se inicializa la funcion del parser, esta recibe el algoritmo para aplicarle la gramatica,
+#y despues usar esta para obtener tambien los nodos para construir el arbol
 class PseudocodeParser:
     def __init__(self):
         self.parser = Lark(PSEUDOCODE_GRAMMAR, parser='lalr', lexer='contextual', start='start')
