@@ -8,3 +8,4 @@ Introducción: OK
 Objetivo: OK
 Arquitectura: OK
 Diagrama de Clases: OK
+Modulos: OK
