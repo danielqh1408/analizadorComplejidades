@@ -1,0 +1,10 @@
+https://docs.google.com/document/d/1VUcy7NxaeQOwyCOSXe8FHhGJAjenLFfbFtzxiNHNxrs/edit?usp=sharing
+
+Documentacion del Codigo: OK
+
+Informe
+
+Introducción: OK
+Objetivo: OK
+Arquitectura: OK
+Diagrama de Clases: OK
