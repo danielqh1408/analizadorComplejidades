@@ -11,3 +11,4 @@ Diagrama de Clases: OK
 Modulos: OK
 Servicios: OK
 Main: OK
+Frontend: OK
