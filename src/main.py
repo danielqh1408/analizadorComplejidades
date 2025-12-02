@@ -55,7 +55,7 @@ async def analyze_algorithm(request: CodeRequest):
     response_data["mode"] = "online" if has_internet else "offline"
 
     if not has_internet:
-        response_data["warnings"].append("⚠️ Modo Offline: Sin acceso a LLM. Funcionalidad reducida.")
+        response_data["warnings"].append("Modo Offline: Sin acceso a LLM. Funcionalidad reducida.")
 
     # 1. Normalización
     logger.info("1. Normalizando entrada...")
