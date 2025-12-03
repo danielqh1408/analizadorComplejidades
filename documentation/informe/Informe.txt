@@ -1,6 +1,8 @@
 Informe: https://docs.google.com/document/d/1VUcy7NxaeQOwyCOSXe8FHhGJAjenLFfbFtzxiNHNxrs/edit?usp=sharing
 
-Manual Tecnico: https://docs.google.com/document/d/1qPBX64C22kOE50uAAEogI0e64z7SZng6zwXLr6J6HIU/edit?tab=t.0
+Manual Tecnico: https://docs.google.com/document/d/1qPBX64C22kOE50uAAEogI0e64z7SZng6zwXLr6J6HIU/edit?usp=sharing
+
+Manual de Usuario: https://docs.google.com/document/d/1UC11EsM8U1mOGCyQ-Ue3mv06Mr0VBJMN1LHoVJhbMKg/edit?usp=sharing
 
 Documentacion del Codigo: OK
 
