@@ -6,13 +6,17 @@ Manual de Usuario: https://docs.google.com/document/d/1UC11EsM8U1mOGCyQ-Ue3mv06M
 
 Documentacion del Codigo: OK
 
+VIDEO: Pendiente
+
 Informe
 
-Introducción: OK
-Objetivo: OK
-Arquitectura: OK
-Diagrama de Clases: OK
-Modulos: OK
-Servicios: OK
-Main: OK
-Frontend: OK
+Punto 1: OK
+Punto 2: OK
+Punto 3: OK
+Punto 4: OK
+Punto 5: OK
+Punto 6: OK
+Punto 7: OK
+Punto 8: Pendiente
+Punto 9: OK
+Punto 10: Pendiente
