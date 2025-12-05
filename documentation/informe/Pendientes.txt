@@ -17,6 +17,6 @@ Punto 4: OK
 Punto 5: OK
 Punto 6: OK
 Punto 7: OK
-Punto 8: Pendiente
+Punto 8: OK
 Punto 9: OK
-Punto 10: Pendiente
+Punto 10: OK
